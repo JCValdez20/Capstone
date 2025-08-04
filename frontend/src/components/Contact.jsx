@@ -5,8 +5,10 @@ const Contact = () => {
   return (
     <section id="contact" className="py-16 bg-white">
       <div className="container mx-auto px-4">
-        <h2 className="text-4xl font-bold text-center mb-12 text-red-600">Get in Touch</h2>
-        
+        <h2 className="text-4xl font-bold text-center mb-12 text-black">
+          Get in Touch
+        </h2>
+
         <div className="max-w-2xl mx-auto">
           <div className="grid gap-8 md:grid-cols-2">
             {/* Location Card */}
@@ -18,7 +20,8 @@ const Contact = () => {
                 <h3 className="font-semibold text-lg">Visit Us</h3>
               </div>
               <p className="text-gray-600">
-                Mabayuan, Olongapo City,<br />
+                Mabayuan, Olongapo City,
+                <br />
                 Zambales, Philippines
               </p>
             </div>
@@ -31,14 +34,23 @@ const Contact = () => {
                 </span>
                 <h3 className="font-semibold text-lg">Business Hours</h3>
               </div>
-              <p className="text-gray-600">Open Daily<br />9:00 AM - 9:00 PM</p>
+              <p className="text-gray-600">
+                Open Daily
+                <br />
+                9:00 AM - 9:00 PM
+              </p>
             </div>
 
             {/* Contact Info Card */}
             <div className="bg-white p-6 rounded-lg border border-gray-100 hover:border-red-100 transition-all duration-300 md:col-span-2">
               <div className="flex flex-col space-y-2">
-                <p className="text-gray-600"><span className="font-semibold">Email:</span> washupmotmot@gmail.com</p>
-                <p className="text-gray-600"><span className="font-semibold">Phone:</span> 0915 512 3222</p>
+                <p className="text-gray-600">
+                  <span className="font-semibold">Email:</span>{" "}
+                  washupmotmot@gmail.com
+                </p>
+                <p className="text-gray-600">
+                  <span className="font-semibold">Phone:</span> 0915 512 3222
+                </p>
               </div>
             </div>
           </div>

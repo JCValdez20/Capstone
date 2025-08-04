@@ -3,6 +3,7 @@ import Navigation from "../../components/Navigation";
 import Services from "../../components/Services";
 import Contact from "../../components/Contact";
 import Footer from "../../components/Footer";
+import Carousel from "../../components/Carousel";
 
 const LandingPage = () => {
   return (
@@ -10,6 +11,7 @@ const LandingPage = () => {
       <Navigation />
       <Hero />
       <Services />
+      <Carousel />
       <Contact />
       <Footer />
     </div>

@@ -12,7 +12,9 @@ const Navigation = () => {
   return (
     <nav className="bg-white py-12">
       <div className="container mx-auto px-15 flex items-center justify-between">
-        <div className="text-3xl font-bold text-red-600">BookUp MotMot</div>
+        <div className="text-3xl italic font-black text-red-600">
+          BookUp MotMot
+        </div>
         <NavigationMenu>
           <NavigationMenuList className="flex items-center space-x-8">
             <NavigationMenuItem>
@@ -20,8 +22,8 @@ const Navigation = () => {
                 to="services"
                 smooth={true}
                 duration={500}
-                offset={-80} // adjust for navbar height if needed
-                className="text-black font-medium hover:text-red-600 transition-colors text-1xl cursor-pointer"
+                offset={-80}
+                className="text-gray-600 hover:text-red-600 transition-all text-1xl cursor-pointer font-medium relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-red-600 after:left-0 after:bottom-0 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
               >
                 Services
               </ScrollLink>
@@ -32,7 +34,7 @@ const Navigation = () => {
                 smooth={true}
                 duration={500}
                 offset={-80}
-                className="text-black font-medium hover:text-red-600 transition-colors text-1xl cursor-pointer"
+                className="text-gray-600 hover:text-red-600 transition-all text-1xl cursor-pointer font-medium relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-red-600 after:left-0 after:bottom-0 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
               >
                 Contact
               </ScrollLink>
@@ -41,19 +43,19 @@ const Navigation = () => {
               <Link to="/login">
                 <Button
                   variant="ghost"
-                  className="text-black font-medium hover:text-red-600 transition-colors text-1xl"
+                  className="text-black font-medium transition-all text-lg px-6 py-7 relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-red-600 after:left-0 after:bottom-0 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
                 >
-                  Login
+                  Sign In
                 </Button>
               </Link>
             </NavigationMenuItem>
             <NavigationMenuItem>
               <Link to="/register">
                 <Button
-                  variant="ghost"
-                  className="text-black font-medium hover:text-red-600 transition-colors text-1xl"
+                  variant="default"
+                  className="bg-red-600 text-white hover:bg-red-700 transition-all text-lg px-6 py-7 font-semibold shadow-md hover:shadow-lg"
                 >
-                  Register
+                  Sign Up
                 </Button>
               </Link>
             </NavigationMenuItem>
