@@ -12,7 +12,7 @@ const Navigation = () => {
   return (
     <nav className="bg-white py-12">
       <div className="container mx-auto px-15 flex items-center justify-between">
-        <div className="text-4xl font-bold text-red-600">BookUp MotMot</div>
+        <div className="text-3xl font-bold text-red-600">BookUp MotMot</div>
         <NavigationMenu>
           <NavigationMenuList className="flex items-center space-x-8">
             <NavigationMenuItem>
