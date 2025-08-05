@@ -11,7 +11,6 @@ const Contact = () => {
 
         <div className="max-w-2xl mx-auto">
           <div className="grid gap-8 md:grid-cols-2">
-            {/* Location Card */}
             <div className="bg-white p-6 rounded-lg border border-gray-100 hover:border-red-100 transition-all duration-300">
               <div className="flex items-center gap-3 mb-3">
                 <span className="p-2 rounded-full bg-red-50">
@@ -26,7 +25,6 @@ const Contact = () => {
               </p>
             </div>
 
-            {/* Hours Card */}
             <div className="bg-white p-6 rounded-lg border border-gray-100 hover:border-red-100 transition-all duration-300">
               <div className="flex items-center gap-3 mb-3">
                 <span className="p-2 rounded-full bg-red-50">
@@ -41,7 +39,6 @@ const Contact = () => {
               </p>
             </div>
 
-            {/* Contact Info Card */}
             <div className="bg-white p-6 rounded-lg border border-gray-100 hover:border-red-100 transition-all duration-300 md:col-span-2">
               <div className="flex flex-col space-y-2">
                 <p className="text-gray-600">

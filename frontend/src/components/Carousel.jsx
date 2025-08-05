@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/carousel";
 
 const Carousel = () => {
-  const plugin = Autoplay({ delay: 4000 }); // 4 seconds per slide
+  const plugin = Autoplay({ delay: 4000 });
 
   return (
     <section className="pt-6 pb-12">
