@@ -6,29 +6,32 @@ const send = require("../utils/Response");
 exports.userLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (!existingUser) {
+    const user = await User.findOne({ email });
+
+    if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    const verifyPassword = await argon2.verify(existingUser.password, password);
-    if (verifyPassword) {
-      const token = jwt.sign({ id: existingUser._id }, process.env.SECRET_KEY, {
-        expiresIn: "1h",
-      });
-      return res.status(200).json({
-        token,
-        user: {
-          id: existingUser._id,
-          first_name: existingUser.first_name,
-          last_name: existingUser.last_name,
 
-          email: existingUser.email,
-          role: existingUser.roles,
-        },
-      });
-    } else {
+    if (!(await argon2.verify(user.password, password))) {
       return res.status(400).json({ message: "Invalid Password" });
     }
+
+    const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+      expiresIn: "1h",
+    });
+
+    return res.status(200).json({
+      token,
+      user: {
+        id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        name: user.name, // Add combined name
+        email: user.email,
+        role: user.role, // Standardized to singular
+        isGoogleUser: user.isGoogleUser || false,
+      },
+    });
   } catch (error) {
     return send.sendErrorMessage(res, 500, error);
   }
@@ -39,7 +42,6 @@ exports.userRegister = async (req, res) => {
   try {
     const hash = await argon2.hash(password, 10);
     const newUser = await User.create({
-      // Mongoose's create()
       first_name,
       last_name,
       email,

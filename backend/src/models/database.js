@@ -5,8 +5,8 @@ const { mongoURI } = require("../config/config");
 const connectDB = async () => {
   try {
     await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, 
-      socketTimeoutMS: 45000, 
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
     console.log("✅ MongoDB connected");
   } catch (error) {
@@ -14,7 +14,6 @@ const connectDB = async () => {
     process.exit(1);
   }
 };
-
 
 process.on("SIGINT", async () => {
   await mongoose.connection.close();

@@ -1,11 +1,63 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
+import { useAuth } from "../../hooks/useAuth";
+import { handleGoogleAuthCallback } from "@/utils/auth"; // Adjust the import path as needed
 
 const Login = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const processGoogleAuth = async () => {
+      const result = await handleGoogleAuthCallback(searchParams, { login });
+      if (result.success) {
+        navigate("/dashboard");
+      } else if (result.message) {
+        setError(result.message);
+      }
+    };
+
+    if (searchParams.get("token") || searchParams.get("error")) {
+      processGoogleAuth();
+    }
+  }, [searchParams, login, navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const result = await login(email, password);
+      if (result.success) {
+        navigate("/dashboard");
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    // Redirect to backend Google auth endpoint
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
+  };
+
   return (
     <div className="h-screen w-full flex flex-col lg:flex-row overflow-hidden">
       <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
@@ -16,6 +68,12 @@ const Login = () => {
 
           <Card className="border-none shadow-none">
             <CardContent className="space-y-4 py-4">
+              {error && (
+                <div className="text-sm text-red-600 bg-red-50 p-2 rounded-md">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2 mb-6">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-800">
                   Welcome Back
@@ -25,7 +83,7 @@ const Login = () => {
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 block">
                     Email
@@ -34,6 +92,9 @@ const Login = () => {
                     type="email"
                     placeholder="Enter your email"
                     className="h-10"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </div>
 
@@ -45,11 +106,18 @@ const Login = () => {
                     type="password"
                     placeholder="Enter your password"
                     className="h-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="remember" />
+                  <Checkbox
+                    id="remember"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked)}
+                  />
                   <label
                     htmlFor="remember"
                     className="text-sm font-medium text-gray-700"
@@ -57,11 +125,16 @@ const Login = () => {
                     Remember Me
                   </label>
                 </div>
-              </div>
 
-              <Button className="w-full h-10 bg-red-600 hover:bg-red-700">
-                Log In
-              </Button>
+                <Button
+                  type="submit"
+                  className="w-full h-10 bg-red-600 hover:bg-red-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Logging in..." : "Log In"}
+                </Button>
+              </form>
+
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>
@@ -73,7 +146,12 @@ const Login = () => {
                 </div>
               </div>
 
-              <Button variant="outline" className="w-full h-10 gap-2">
+              <Button
+                variant="outline"
+                className="w-full h-10 gap-2"
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+              >
                 <FcGoogle className="h-5 w-5" />
                 <span>Continue with Google</span>
               </Button>
@@ -115,4 +193,3 @@ const Login = () => {
 };
 
 export default Login;
-  

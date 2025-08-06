@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: ["customer", "admin"],
+    default: "customer",
+  },
+  isGoogleUser: {
+    type: Boolean,
+    default: false,
   },
   profilePic: {
     type: String,

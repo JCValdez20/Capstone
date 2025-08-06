@@ -38,6 +38,32 @@ export function AuthProvider({ children }) {
     setAuth({ ...initialAuthState, isLoading: false });
   };
 
+  const logout = async () => {
+    try {
+      // Clear frontend auth state first
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      // If it's a Google user, redirect to backend logout
+      if (auth.isGoogleUser) {
+        window.location.href = `${import.meta.env.VITE_API_URL}/auth/logout`;
+      } else {
+        // For local users, just clear state
+        setAuth({
+          ...initialAuthState,
+          isLoading: false,
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Fallback to local logout if Google logout fails
+      setAuth({
+        ...initialAuthState,
+        isLoading: false,
+      });
+    }
+  };
+
   useEffect(() => {
     const initAuth = async () => {
       const { valid, user } = await verifyToken();
@@ -57,47 +83,50 @@ export function AuthProvider({ children }) {
     initAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, isGoogleAuth = false) => {
     try {
       setAuth((prev) => ({ ...prev, isLoading: true }));
 
-      const { data } = await axios.post("/user/login", { email, password });
-      console.log("Login response:", data); // Debug log
-
-      if (!data.token || !data.user) {
-        throw new Error("Invalid response from server");
+      let data;
+      if (isGoogleAuth) {
+        // Google auth already provides standardized data
+        data = { token: email, user: password };
+      } else {
+        const response = await axios.post("/user/login", { email, password });
+        data = response.data;
+        if (!data.token || !data.user) throw new Error("Invalid response");
       }
 
-      // Create user object with combined name
-      const userWithFullName = {
+      // Standardized user object handling
+      const user = {
         ...data.user,
-        name: `${data.user.first_name} ${data.user.last_name}`,
+        name:
+          data.user.name || `${data.user.first_name} ${data.user.last_name}`,
+        role: data.user.role || data.user.roles, // Handle both cases
       };
 
-      // Store auth data
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(userWithFullName));
+      localStorage.setItem("user", JSON.stringify(user));
 
-      // Update auth state
       setAuth({
-        user: userWithFullName,
+        user,
         isLoggedIn: true,
-        role: data.user.role,
+        role: user.role,
         isLoading: false,
         error: null,
+        isGoogleUser: isGoogleAuth,
       });
 
       return {
         success: true,
-        message: `Welcome back, ${userWithFullName.name}!`,
+        message: `Welcome back, ${user.name}!`,
       };
     } catch (err) {
       console.error("Login error:", err);
       clearAuth();
-
       return {
         success: false,
-        message: err.response?.data?.message || "Invalid credentials",
+        message: err.response?.data?.message || "Login failed",
       };
     }
   };
@@ -125,10 +154,10 @@ export function AuthProvider({ children }) {
   const value = {
     ...auth,
     login,
-    register,
-    logout: clearAuth,
+    register, // keep your existing register function
+    logout, // now handles both types
     isAdmin: auth.role === "admin",
-    isBuyer: auth.role === "buyer",
+    isCustomer: auth.role === "customer",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
