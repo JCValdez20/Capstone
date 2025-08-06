@@ -3,7 +3,17 @@ const app = express();
 const parser = require("body-parser");
 const morgan = require("morgan");
 const database = require("./models/database");
+const connectDB = require("./models/database");
 require("dotenv").config();
+
+connectDB()
+  .then(() => {
+    console.log("MongoDB connection established");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection failed:", err);
+    process.exit(1);
+  });
 
 app.use(morgan("dev"));
 app.use(parser.urlencoded({ extended: false }));
@@ -28,11 +38,10 @@ app.use((req, res, next) => {
 });
 
 const userRoutes = require("./routes/UserRoutes");
-const productRoutes = require("./routes/ProductRoutes");
 const authRoutes = require("./routes/AuthRoutes");
+                              
+app.use("/auth", authRoutes);       
 
-app.use("/auth", authRoutes);
-app.use("/product", productRoutes);
 app.use("/user", userRoutes);
 
 app.use((req, res, next) => {
