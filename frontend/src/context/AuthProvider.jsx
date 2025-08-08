@@ -151,6 +151,7 @@ export function AuthProvider({ children }) {
     }
   };
 
+
   const value = {
     ...auth,
     login,
@@ -159,6 +160,7 @@ export function AuthProvider({ children }) {
     isAdmin: auth.role === "admin",
     isCustomer: auth.role === "customer",
   };
+  
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

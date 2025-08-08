@@ -11,22 +11,21 @@ exports.loginSuccess = async (req, res) => {
       {
         id: req.user._id,
         email: req.user.email,
-        role: req.user.role, // Standardized
+        role: req.user.role,
       },
       process.env.SECRET_KEY,
       { expiresIn: "24h" }
     );
 
-    // Construct clean URL
     const clientUrl = process.env.CLIENT_URL.replace(/\/$/, "");
-    const redirectUrl = `${clientUrl}/login?token=${token}&user=${encodeURIComponent(
+    const redirectUrl = `${clientUrl}/auth/callback/google?token=${token}&user=${encodeURIComponent(
       JSON.stringify({
         id: req.user._id,
         email: req.user.email,
         first_name: req.user.first_name,
         last_name: req.user.last_name,
         name: req.user.name,
-        role: req.user.role, // Standardized
+        roles: req.user.roles,
         isGoogleUser: true,
       })
     )}`;
@@ -38,6 +37,7 @@ exports.loginSuccess = async (req, res) => {
     res.redirect(`${clientUrl}/login?error=auth_failed`);
   }
 };
+
 exports.loginFailed = async (req, res) => {
   try {
     res.redirect(`${process.env.CLIENT_URL}?error=login_failed`);

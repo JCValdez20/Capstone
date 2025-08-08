@@ -8,8 +8,10 @@ import "./index.css";
 import LandingPage from "./pages/landing-page/LandingPage.jsx";
 import Register from "./pages/register/Register.jsx";
 import Login from "./pages/login/Login.jsx";
-import Dashboard from "./pages/user/Dashboard.jsx";
+import Dashboard from "./pages/user/dashboard-page/Dashboard.jsx";
 import ProtectedRoute from "./utils/ProtectedRoute.jsx";
+import GoogleCallbackHandler from "./utils/GoogleCallbackHandler.jsx";
+import AppSidebar from "./components/Sidebar.jsx";
 import AdminProtected from "./utils/AdminRoute.jsx";
 
 const router = createBrowserRouter([
@@ -26,15 +28,24 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
+    path: "/auth/callback/google", // ✅ New route for Google redirect
+    element: <GoogleCallbackHandler />,
+  },
+  {
     element: <ProtectedRoute />,
     children: [
       {
         path: "/dashboard",
-        element: <Dashboard />,
+        element: (
+          <AppSidebar>
+            <Dashboard />
+          </AppSidebar>
+        ),
       },
     ],
   },
 ]);
+
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

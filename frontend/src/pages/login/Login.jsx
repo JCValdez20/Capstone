@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
-import { handleGoogleAuthCallback } from "@/utils/auth"; // Adjust the import path as needed
+
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,20 +19,8 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const processGoogleAuth = async () => {
-      const result = await handleGoogleAuthCallback(searchParams, { login });
-      if (result.success) {
-        navigate("/dashboard");
-      } else if (result.message) {
-        setError(result.message);
-      }
-    };
 
-    if (searchParams.get("token") || searchParams.get("error")) {
-      processGoogleAuth();
-    }
-  }, [searchParams, login, navigate]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
