@@ -12,6 +12,8 @@ import Dashboard from "./pages/user/dashboard-page/Dashboard.jsx";
 import ProtectedRoute from "./utils/ProtectedRoute.jsx";
 import GoogleCallbackHandler from "./utils/GoogleCallbackHandler.jsx";
 import AppSidebar from "./components/Sidebar.jsx";
+import AuthRedirect from "./utils/AuthRedirect.jsx";
+import BookingHistory from "./pages/user/dashboard-content/BookingHistory.jsx";
 import AdminProtected from "./utils/AdminRoute.jsx";
 
 const router = createBrowserRouter([
@@ -21,14 +23,22 @@ const router = createBrowserRouter([
   },
   {
     path: "/register",
-    element: <Register />,
+    element: (
+      <AuthRedirect>
+        <Register />
+      </AuthRedirect>
+    ),
   },
   {
     path: "/login",
-    element: <Login />,
+    element: (
+      <AuthRedirect>
+        <Login />
+      </AuthRedirect>
+    ),
   },
   {
-    path: "/auth/callback/google", // ✅ New route for Google redirect
+    path: "/auth/callback/google",
     element: <GoogleCallbackHandler />,
   },
   {
@@ -42,10 +52,17 @@ const router = createBrowserRouter([
           </AppSidebar>
         ),
       },
+      {
+        path: "/booking-history",
+        element: (
+          <AppSidebar>
+            <BookingHistory />
+          </AppSidebar>
+        ),
+      },
     ],
   },
 ]);
-
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
