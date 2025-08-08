@@ -1,10 +1,10 @@
 // src/utils/AuthRedirect.jsx
 import React from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const AuthRedirect = ({ redirectPath = "/dashboard" }) => {
+const AuthRedirect = ({ children, redirectPath = "/dashboard" }) => {
   const { isLoggedIn, isLoading } = useAuth();
   const location = useLocation();
 
@@ -25,7 +25,7 @@ const AuthRedirect = ({ redirectPath = "/dashboard" }) => {
     return <Navigate to={redirectPath} replace state={{ from: location }} />;
   }
 
-  return <Outlet />;
+  return children;
 };
 
 export default AuthRedirect;

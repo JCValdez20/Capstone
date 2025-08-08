@@ -1,17 +1,15 @@
 import React from "react";
 import { Outlet, Navigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import adminService from "@/services/adminService";
 
 const AdminProtected = () => {
-  const { isLoggedIn, role, isLoading } = useAuth();
+  const isAuthenticated = adminService.isAuthenticated();
 
-  if (isLoading) return <div>Loading...</div>;
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
-  return isLoggedIn && role === "admin" ? (
-    <Outlet />
-  ) : (
-    <Navigate to="/unauthorized" />
-  );
+  return <Outlet />;
 };
 
 export default AdminProtected;

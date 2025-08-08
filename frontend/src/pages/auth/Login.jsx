@@ -50,19 +50,19 @@ const Login = () => {
     <div className="h-screen w-full flex flex-col lg:flex-row overflow-hidden">
       <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
         <div className="w-full max-w-[360px]">
-          <div className="text-2xl md:text-3xl font-black text-red-600 mb-8">
+          <div className="text-2xl md:text-3xl font-black text-red-600 mb-4 text-center lg:text-left">
             BookUp MotMot
           </div>
 
           <Card className="border-none shadow-none">
-            <CardContent className="space-y-4 py-4">
+            <CardContent className="space-y-3 py-2">
               {error && (
                 <div className="text-sm text-red-600 bg-red-50 p-2 rounded-md">
                   {error}
                 </div>
               )}
 
-              <div className="space-y-2 mb-6">
+              <div className="space-y-1 mb-4">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-800">
                   Welcome Back
                 </h1>
@@ -71,36 +71,36 @@ const Login = () => {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700 block">
                     Email
                   </label>
                   <Input
                     type="email"
                     placeholder="Enter your email"
-                    className="h-10"
+                    className="h-9"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700 block">
                     Password
                   </label>
                   <Input
                     type="password"
                     placeholder="Enter your password"
-                    className="h-10"
+                    className="h-9"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 py-1">
                   <Checkbox
                     id="remember"
                     checked={rememberMe}
@@ -116,14 +116,14 @@ const Login = () => {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 bg-red-600 hover:bg-red-700"
+                  className="w-full h-9 bg-red-600 hover:bg-red-700"
                   disabled={isLoading}
                 >
                   {isLoading ? "Logging in..." : "Log In"}
                 </Button>
               </form>
 
-              <div className="relative my-6">
+              <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
@@ -136,7 +136,7 @@ const Login = () => {
 
               <Button
                 variant="outline"
-                className="w-full h-10 gap-2"
+                className="w-full h-9 gap-2"
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
               >
@@ -144,7 +144,7 @@ const Login = () => {
                 <span>Continue with Google</span>
               </Button>
 
-              <p className="text-center text-sm text-gray-500 mt-6">
+              <p className="text-center text-sm text-gray-500 mt-4">
                 Don't Have An Account?{" "}
                 <Link
                   to="/register"

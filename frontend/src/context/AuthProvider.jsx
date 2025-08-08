@@ -35,7 +35,13 @@ export function AuthProvider({ children }) {
   const clearAuth = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    setAuth({ ...initialAuthState, isLoading: false });
+    setAuth({
+      user: null,
+      isLoggedIn: false,
+      role: null,
+      isLoading: false,
+      error: null,
+    });
   };
 
   const logout = async () => {
@@ -45,21 +51,35 @@ export function AuthProvider({ children }) {
       localStorage.removeItem("user");
 
       // If it's a Google user, redirect to backend logout
-      if (auth.isGoogleUser) {
+      if (auth.user?.isGoogleUser || auth.isGoogleUser) {
+        // Set loading state before redirect
+        setAuth({
+          user: null,
+          isLoggedIn: false,
+          role: null,
+          isLoading: true, // Keep loading true during redirect
+          error: null,
+        });
         window.location.href = `${import.meta.env.VITE_API_URL}/auth/logout`;
       } else {
         // For local users, just clear state
         setAuth({
-          ...initialAuthState,
-          isLoading: false,
+          user: null,
+          isLoggedIn: false,
+          role: null,
+          isLoading: false, // Make sure this is false
+          error: null,
         });
       }
     } catch (error) {
       console.error("Logout error:", error);
       // Fallback to local logout if Google logout fails
       setAuth({
-        ...initialAuthState,
-        isLoading: false,
+        user: null,
+        isLoggedIn: false,
+        role: null,
+        isLoading: false, // Make sure this is false
+        error: null,
       });
     }
   };

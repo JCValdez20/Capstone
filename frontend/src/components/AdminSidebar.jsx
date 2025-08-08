@@ -11,16 +11,17 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { useAuth } from "../hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   LogOut,
   Home,
-  CalendarDays,
-  ChevronRight,
+  Users,
+  Settings,
   ChevronDown,
   User,
   Menu,
+  Shield,
+  Calendar,
 } from "lucide-react";
 import {
   Tooltip,
@@ -35,29 +36,41 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "react-router-dom";
+import adminService from "@/services/adminService";
 
-const AppSidebar = ({ children }) => {
-  const { logout, user } = useAuth();
+const AdminSidebar = ({ children }) => {
   const location = useLocation();
+  const currentAdmin = adminService.getCurrentAdmin();
 
-  const firstName = user?.first_name || "Sandra";
-  const lastName = user?.last_name || "Marx";
-  const fullName = `${firstName} ${lastName}`.trim() || "User";
-  const userEmail = user?.email || "sandra@gmail.com";
-  const userInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "SM";
+  const handleLogout = () => {
+    adminService.logout();
+    window.location.href = '/admin/login';
+  };
+
+  const firstName = currentAdmin?.first_name || "Admin";
+  const lastName = currentAdmin?.last_name || "User";
+  const fullName = `${firstName} ${lastName}`.trim() || "Admin";
+  const userEmail = currentAdmin?.email || "admin@washup.com";
+  const userInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "AU";
 
   const navItems = [
     {
       icon: Home,
       label: "Dashboard",
-      path: "/dashboard",
-      tooltip: "Dashboard",
+      path: "/admin/dashboard",
+      tooltip: "Admin Dashboard",
     },
     {
-      icon: CalendarDays,
-      label: "Booking History",
-      path: "/booking-history",
-      tooltip: "Booking History",
+      icon: Users,
+      label: "User Management",
+      path: "/admin/users",
+      tooltip: "Manage Users",
+    },
+    {
+      icon: Calendar,
+      label: "Booking Management",
+      path: "/admin/bookings",
+      tooltip: "Manage Bookings",
     },
   ];
 
@@ -73,19 +86,20 @@ const AppSidebar = ({ children }) => {
             <SidebarTrigger className="mb-3 group-data-[collapsible=icon]:rotate-180 transition-transform duration-200" />
             
             <div className="flex flex-col items-center gap-2">
-              {/* Logo - shows when expanded, Menu icon when collapsed */}
+              {/* Logo - shows when expanded, Shield icon when collapsed */}
               <div className="group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:bg-red-500 group-data-[collapsible=icon]:rounded-lg flex items-center justify-center transition-all duration-200">
                 <img 
                   src="/src/assets/WashUpLogo.png" 
                   alt="WashUp Logo" 
                   className="w-20 h-20 object-contain group-data-[collapsible=icon]:hidden"
                 />
-                <Menu className="w-4 h-4 text-white hidden group-data-[collapsible=icon]:block" />
+                <Shield className="w-4 h-4 text-white hidden group-data-[collapsible=icon]:block" />
               </div>
               <div className="group-data-[collapsible=icon]:hidden text-center">
-                <h1 className="text-lg font-black text-red-700 ">
-                  BookUp MotMot
+                <h1 className="text-lg font-black text-red-700">
+                  WashUp Admin
                 </h1>
+                <p className="text-xs text-slate-500">Management Portal</p>
               </div>
             </div>
           </SidebarHeader>
@@ -135,7 +149,7 @@ const AppSidebar = ({ children }) => {
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors duration-200 group-data-[collapsible=icon]:justify-center">
                   <Avatar className="w-8 h-8 shrink-0">
-                    <AvatarFallback className="bg-slate-200 text-slate-700 text-sm font-medium">
+                    <AvatarFallback className="bg-red-100 text-red-700 text-sm font-medium">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
@@ -144,8 +158,8 @@ const AppSidebar = ({ children }) => {
                     <p className="text-sm font-medium text-slate-900 truncate">
                       {fullName}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">
-                      {userEmail}
+                    <p className="text-xs text-red-600 truncate">
+                      Administrator
                     </p>
                   </div>
 
@@ -162,6 +176,7 @@ const AppSidebar = ({ children }) => {
                   <p className="text-sm font-medium text-slate-900">
                     {fullName}
                   </p>
+                  <p className="text-xs text-red-600">Administrator</p>
                   <p className="text-xs text-slate-500">{userEmail}</p>
                 </div>
                 <DropdownMenuSeparator className="bg-slate-100" />
@@ -169,9 +184,13 @@ const AppSidebar = ({ children }) => {
                   <User className="w-4 h-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   className="gap-2 text-red-600 hover:bg-red-50 cursor-pointer"
-                  onClick={logout}
+                  onClick={handleLogout}
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign Out</span>
@@ -190,4 +209,4 @@ const AppSidebar = ({ children }) => {
   );
 };
 
-export default AppSidebar;
+export default AdminSidebar;

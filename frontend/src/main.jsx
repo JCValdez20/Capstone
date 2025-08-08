@@ -6,15 +6,19 @@ import { AuthProvider } from "./context/AuthProvider.jsx";
 import "./index.css";
 
 import LandingPage from "./pages/landing-page/LandingPage.jsx";
-import Register from "./pages/register/Register.jsx";
-import Login from "./pages/login/Login.jsx";
-import Dashboard from "./pages/user/dashboard-page/Dashboard.jsx";
+import Register from "./pages/auth/Register.jsx";
+import Login from "./pages/auth/Login.jsx";
+import Dashboard from "./pages/user/dashboard/Dashboard.jsx";
 import ProtectedRoute from "./utils/ProtectedRoute.jsx";
 import GoogleCallbackHandler from "./utils/GoogleCallbackHandler.jsx";
 import AppSidebar from "./components/Sidebar.jsx";
 import AuthRedirect from "./utils/AuthRedirect.jsx";
-import BookingHistory from "./pages/user/dashboard-content/BookingHistory.jsx";
+import BookingHistory from "./pages/user/dashboard/BookingHistory.jsx";
 import AdminProtected from "./utils/AdminRoute.jsx";
+import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
+import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
+import UserManagement from "./pages/admin/dashboard/UserManagement.jsx";
+import AdminBookings from "./pages/admin/dashboard/AdminBookings.jsx";
 
 const router = createBrowserRouter([
   {
@@ -40,6 +44,27 @@ const router = createBrowserRouter([
   {
     path: "/auth/callback/google",
     element: <GoogleCallbackHandler />,
+  },
+  {
+    path: "/admin/login",
+    element: <AdminLogin />,
+  },
+  {
+    element: <AdminProtected />,
+    children: [
+      {
+        path: "/admin/dashboard",
+        element: <AdminDashboard />,
+      },
+      {
+        path: "/admin/users",
+        element: <UserManagement />,
+      },
+      {
+        path: "/admin/bookings",
+        element: <AdminBookings />,
+      },
+    ],
   },
   {
     element: <ProtectedRoute />,

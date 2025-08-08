@@ -8,6 +8,6 @@ router.post("/register", UserController.userRegister);
 
 router.get("/admin/users", AdminOnly, UserController.getAllUsers);
 router.get("/admin/users/:id", UserController.getUserbyId);
-router.post("/admin/create", UserController.createAdmin);
+// router.post("/admin/create", UserController.createAdmin);
 
 module.exports = router;
