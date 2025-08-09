@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import adminService from '@/services/adminService';
+import { toast } from "sonner";
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
@@ -38,13 +39,23 @@ const AdminLogin = () => {
       if (response.user.role !== 'admin') {
         setError('Access denied. Admin privileges required.');
         adminService.logout(); // Clean up any stored data
+        toast.error("Access denied", {
+          description: "Admin privileges required to access this area.",
+        });
         return;
       }
 
+      toast.success("Admin login successful", {
+        description: "Welcome to the admin dashboard!",
+      });
+      
       // Redirect to admin dashboard on successful login
       navigate('/admin/dashboard', { replace: true });
     } catch (error) {
       setError(error.message || 'Login failed. Please try again.');
+      toast.error("Login failed", {
+        description: error.message || "Please check your credentials and try again.",
+      });
     } finally {
       setIsLoading(false);
     }

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
+import { toast } from "sonner";
 
 
 const Login = () => {
@@ -30,12 +31,21 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
+        toast.success("Welcome back!", {
+          description: "Successfully logged in. Redirecting to dashboard...",
+        });
         navigate("/dashboard");
       } else {
         setError(result.message);
+        toast.error("Login failed", {
+          description: result.message || "Please check your credentials and try again.",
+        });
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("Login error", {
+        description: "An unexpected error occurred. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }

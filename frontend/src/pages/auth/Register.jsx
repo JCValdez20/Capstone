@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
+import { toast } from "sonner";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -69,14 +70,23 @@ const Register = () => {
       
       const result = await register(registrationData);
       if (result.success) {
+        toast.success("Registration successful!", {
+          description: "Your account has been created. Please log in to continue.",
+        });
         navigate("/login", { 
           state: { message: "Registration successful! Please log in." }
         });
       } else {
         setError(result.message);
+        toast.error("Registration failed", {
+          description: result.message || "Please check your information and try again.",
+        });
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
+      toast.error("Registration error", {
+        description: "An unexpected error occurred. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }
