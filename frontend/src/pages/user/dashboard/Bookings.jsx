@@ -4,7 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { useAuth } from "../../../hooks/useAuth";
 import { bookingService } from "../../../services/bookingService";
@@ -53,16 +60,17 @@ const Bookings = () => {
 
     const days = [];
     const today = new Date();
-    
+
     for (let i = 0; i < 42; i++) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
-      
+
       const isCurrentMonth = date.getMonth() === month;
       const isToday = date.toDateString() === today.toDateString();
       const isPastDate = date < today && !isToday;
-      const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-      
+      const isSelected =
+        selectedDate && date.toDateString() === selectedDate.toDateString();
+
       days.push({
         date,
         day: date.getDate(),
@@ -72,7 +80,7 @@ const Bookings = () => {
         isSelected,
       });
     }
-    
+
     return days;
   };
 
@@ -81,49 +89,31 @@ const Bookings = () => {
       id: "UV Graphene Ceramic Coating",
       name: "UV Graphene Ceramic Coating",
       description: "Premium ceramic coating protection",
-      price: 150,
-      duration: "120 min",
-      popular: false,
     },
     {
       id: "Powder Coating",
       name: "Powder Coating",
       description: "Durable powder coating finish",
-      price: 100,
-      duration: "90 min",
-      popular: false,
     },
     {
       id: "Moto/Oto VIP",
       name: "Moto/Oto VIP",
       description: "VIP motorcycle treatment",
-      price: 80,
-      duration: "75 min",
-      popular: true,
     },
     {
       id: "Full Moto/Oto SPA",
       name: "Full Moto/Oto SPA",
       description: "Complete spa treatment",
-      price: 120,
-      duration: "90 min",
-      popular: true,
     },
     {
       id: "Modernized Interior Detailing",
       name: "Modernized Interior Detailing",
       description: "Interior detailing service",
-      price: 60,
-      duration: "60 min",
-      popular: false,
     },
     {
       id: "Modernized Engine Detailing",
       name: "Modernized Engine Detailing",
       description: "Engine cleaning and detailing",
-      price: 70,
-      duration: "45 min",
-      popular: false,
     },
   ];
 
@@ -137,29 +127,30 @@ const Bookings = () => {
   // Helper function to format date without timezone issues
   const formatDateForAPI = (date) => {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
   const fetchAvailableSlots = async () => {
     if (!selectedDate) return;
-    
+
     setLoadingSlots(true);
     try {
       const dateString = formatDateForAPI(selectedDate);
       const slots = await bookingService.getAvailableSlots(dateString);
-      
+
       setAvailableSlots(slots);
       setSelectedTimeSlot(null); // Reset selected time slot
-      
+
       if (slots.length === 0) {
         toast.info("No slots available", {
-          description: "All time slots are booked for this date. Please try another date.",
+          description:
+            "All time slots are booked for this date. Please try another date.",
         });
       }
     } catch (error) {
-      console.error('Error fetching slots:', error);
+      console.error("Error fetching slots:", error);
       setAvailableSlots([]);
       toast.error("Failed to load time slots", {
         description: "Please try refreshing or selecting a different date.",
@@ -179,20 +170,24 @@ const Bookings = () => {
         date: formatDateForAPI(selectedDate),
         timeSlot: selectedTimeSlot.time,
         vehicle: selectedVehicle,
-        notes: notes.trim()
+        notes: notes.trim(),
       };
 
       await bookingService.createBooking(bookingData);
       setBookingSuccess(true);
-      
+
       toast.success("Booking confirmed!", {
-        description: `Your ${selectedService.name} appointment on ${selectedDate.toLocaleDateString()} at ${selectedTimeSlot.time} has been booked.`,
+        description: `Your ${
+          selectedService.name
+        } appointment on ${selectedDate.toLocaleDateString()} at ${
+          selectedTimeSlot.time
+        } has been booked.`,
         action: {
           label: "View History",
-          onClick: () => window.location.href = "/dashboard/history"
-        }
+          onClick: () => (window.location.href = "/dashboard/booking-history"),
+        },
       });
-      
+
       // Reset form and close dialog after successful booking
       setTimeout(() => {
         setSelectedDate(null);
@@ -203,11 +198,12 @@ const Bookings = () => {
         setBookingSuccess(false);
         setIsDialogOpen(false);
       }, 2000);
-      
     } catch (error) {
-      console.error('Booking failed:', error);
+      console.error("Booking failed:", error);
       toast.error("Booking failed", {
-        description: error.response?.data?.message || "Please try again or contact support if the problem persists.",
+        description:
+          error.response?.data?.message ||
+          "Please try again or contact support if the problem persists.",
       });
     } finally {
       setBookingLoading(false);
@@ -215,12 +211,22 @@ const Bookings = () => {
   };
 
   const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
   const navigateMonth = (direction) => {
-    setCurrentMonth(prev => {
+    setCurrentMonth((prev) => {
       const newDate = new Date(prev);
       newDate.setMonth(prev.getMonth() + direction);
       return newDate;
@@ -239,7 +245,8 @@ const Bookings = () => {
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100">
         <h1 className="text-2xl font-light text-black mb-1">
-          Welcome back, <span className="text-red-800 font-medium">{fullName}</span>
+          Welcome back,{" "}
+          <span className="text-red-800 font-medium">{fullName}</span>
         </h1>
         <p className="text-gray-600 text-sm">
           Schedule your motorcycle wash appointment
@@ -257,7 +264,7 @@ const Bookings = () => {
                 <Calendar className="w-6 h-6 text-red-800" />
                 Select Date
               </h2>
-              
+
               {/* Month Navigation */}
               <div className="flex items-center justify-between mb-6">
                 <Button
@@ -269,7 +276,8 @@ const Bookings = () => {
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
                 <h3 className="font-medium text-xl text-black">
-                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                  {monthNames[currentMonth.getMonth()]}{" "}
+                  {currentMonth.getFullYear()}
                 </h3>
                 <Button
                   variant="ghost"
@@ -284,7 +292,10 @@ const Bookings = () => {
               {/* Calendar Grid */}
               <div className="grid grid-cols-7 gap-2">
                 {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-                  <div key={`day-header-${index}`} className="p-3 text-center text-sm font-medium text-gray-400">
+                  <div
+                    key={`day-header-${index}`}
+                    className="p-3 text-center text-sm font-medium text-gray-400"
+                  >
                     {day}
                   </div>
                 ))}
@@ -295,14 +306,23 @@ const Bookings = () => {
                     disabled={day.isPastDate || !day.isCurrentMonth}
                     className={`
                       p-3 text-sm rounded-xl transition-all duration-200 relative font-medium
-                      ${day.isCurrentMonth 
-                        ? day.isPastDate 
-                          ? "text-gray-300 cursor-not-allowed" 
-                          : "text-black hover:bg-gray-50" 
-                        : "text-gray-200"
+                      ${
+                        day.isCurrentMonth
+                          ? day.isPastDate
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-black hover:bg-gray-50"
+                          : "text-gray-200"
                       }
-                      ${day.isToday ? "bg-gray-100 text-black font-semibold ring-2 ring-gray-200" : ""}
-                      ${day.isSelected ? "bg-red-800 text-white font-semibold shadow-lg scale-105" : ""}
+                      ${
+                        day.isToday
+                          ? "bg-gray-100 text-black font-semibold ring-2 ring-gray-200"
+                          : ""
+                      }
+                      ${
+                        day.isSelected
+                          ? "bg-red-800 text-white font-semibold shadow-lg scale-105"
+                          : ""
+                      }
                     `}
                   >
                     {day.day}
@@ -319,7 +339,7 @@ const Bookings = () => {
                 <Clock className="w-4 h-4 text-red-800" />
                 Time Slots
               </h2>
-              
+
               {!selectedDate && (
                 <div className="text-center text-gray-500 py-8">
                   <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -330,7 +350,10 @@ const Bookings = () => {
               {selectedDate && loadingSlots && (
                 <div className="space-y-2 pr-4">
                   {[...Array(6)].map((_, i) => (
-                    <div key={i} className="p-2 rounded-lg border border-gray-200">
+                    <div
+                      key={i}
+                      className="p-2 rounded-lg border border-gray-200"
+                    >
                       <Skeleton className="h-4 w-16 mb-1" />
                       <Skeleton className="h-3 w-12" />
                     </div>
@@ -352,9 +375,10 @@ const Bookings = () => {
                           onClick={() => setSelectedTimeSlot(slot)}
                           className={`
                             p-2 rounded-lg border transition-all duration-200 text-center text-xs
-                            ${selectedTimeSlot?.time === slot.time
-                              ? "border-red-800 bg-red-800 text-white"
-                              : "border-gray-200 hover:border-gray-300 text-black"
+                            ${
+                              selectedTimeSlot?.time === slot.time
+                                ? "border-red-800 bg-red-800 text-white"
+                                : "border-gray-200 hover:border-gray-300 text-black"
                             }
                           `}
                         >
@@ -385,9 +409,10 @@ const Bookings = () => {
                       onClick={() => setSelectedService(service)}
                       className={`
                         p-3 rounded-lg border cursor-pointer transition-all duration-200 relative
-                        ${selectedService?.id === service.id
-                          ? "border-red-800 bg-red-800 text-white"
-                          : "border-gray-200 hover:border-gray-300 text-black"
+                        ${
+                          selectedService?.id === service.id
+                            ? "border-red-800 bg-red-800 text-white"
+                            : "border-gray-200 hover:border-gray-300 text-black"
                         }
                       `}
                     >
@@ -396,13 +421,19 @@ const Bookings = () => {
                           Popular
                         </div>
                       )}
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium text-sm mb-1">
                             {service.name}
                           </h3>
-                          <p className={`text-xs ${selectedService?.id === service.id ? 'text-red-100' : 'text-gray-600'}`}>
+                          <p
+                            className={`text-xs ${
+                              selectedService?.id === service.id
+                                ? "text-red-100"
+                                : "text-gray-600"
+                            }`}
+                          >
                             {service.description}
                           </p>
                         </div>
@@ -425,7 +456,9 @@ const Bookings = () => {
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
-                    disabled={!selectedDate || !selectedTimeSlot || !selectedService}
+                    disabled={
+                      !selectedDate || !selectedTimeSlot || !selectedService
+                    }
                     className="w-full bg-red-800 hover:bg-red-900 text-white py-3 text-lg font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-200"
                   >
                     Book Now
@@ -443,9 +476,10 @@ const Bookings = () => {
                       Please review your booking details before confirming
                     </DialogDescription>
                   </DialogHeader>
-                  
-                  <div className="flex-1 overflow-auto space-y-4 px-1"
-                    style={{ maxHeight: 'calc(90vh - 200px)' }}
+
+                  <div
+                    className="flex-1 overflow-auto space-y-4 px-1"
+                    style={{ maxHeight: "calc(90vh - 200px)" }}
                   >
                     {/* Booking Summary Card */}
                     <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
@@ -459,38 +493,50 @@ const Bookings = () => {
                             <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
                               <Calendar className="w-4 h-4 text-blue-600" />
                             </div>
-                            <span className="text-gray-700 font-medium text-sm">Date</span>
+                            <span className="text-gray-700 font-medium text-sm">
+                              Date
+                            </span>
                           </div>
                           <span className="font-semibold text-gray-900 text-sm">
-                            {selectedDate ? selectedDate.toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric',
-                              year: 'numeric'
-                            }) : "Not selected"}
+                            {selectedDate
+                              ? selectedDate.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })
+                              : "Not selected"}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
                               <Clock className="w-4 h-4 text-green-600" />
                             </div>
-                            <span className="text-gray-700 font-medium text-sm">Time</span>
+                            <span className="text-gray-700 font-medium text-sm">
+                              Time
+                            </span>
                           </div>
                           <span className="font-semibold text-gray-900 text-sm">
-                            {selectedTimeSlot ? selectedTimeSlot.time : "Not selected"}
+                            {selectedTimeSlot
+                              ? selectedTimeSlot.time
+                              : "Not selected"}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
                               <Sparkles className="w-4 h-4 text-purple-600" />
                             </div>
-                            <span className="text-gray-700 font-medium text-sm">Service</span>
+                            <span className="text-gray-700 font-medium text-sm">
+                              Service
+                            </span>
                           </div>
                           <span className="font-semibold text-gray-900 text-sm">
-                            {selectedService ? selectedService.name : "Not selected"}
+                            {selectedService
+                              ? selectedService.name
+                              : "Not selected"}
                           </span>
                         </div>
                       </div>
@@ -528,7 +574,9 @@ const Bookings = () => {
 
                     {/* Notes Section */}
                     <div className="bg-white rounded-xl p-3 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">Additional Notes</h4>
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Additional Notes
+                      </h4>
                       <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
