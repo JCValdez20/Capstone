@@ -4,7 +4,7 @@ const bookingSchema = new mongoose.Schema({
   // User Information
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: "Users", // Changed from "User" to "Users" to match the model registration
     required: true,
   },
 
@@ -51,7 +51,7 @@ const bookingSchema = new mongoose.Schema({
   // Status Management
   status: {
     type: String,
-    enum: ["pending", "confirmed", "completed", "cancelled", "no-show"],
+    enum: ["pending", "confirmed", "completed", "cancelled", "no-show", "rejected"],
     default: "pending",
   },
 
@@ -69,6 +69,12 @@ const bookingSchema = new mongoose.Schema({
     maxlength: 500,
   },
 
+  // Rejection reason - required when status is rejected
+  rejectionReason: {
+    type: String,
+    maxlength: 500,
+  },
+
   // Metadata - NO pre-save middleware
   createdAt: {
     type: Date,
@@ -81,11 +87,9 @@ const bookingSchema = new mongoose.Schema({
   },
 });
 
-
 bookingSchema.index({ user: 1, date: 1 });
 bookingSchema.index({ date: 1, timeSlot: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ date: 1, status: 1 });
-
 
 module.exports = mongoose.model("Booking", bookingSchema);

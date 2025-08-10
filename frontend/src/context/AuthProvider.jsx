@@ -171,16 +171,36 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const updateUserData = (updatedUser) => {
+    try {
+      console.log("AuthProvider - Updating user data:", {
+        currentUser: auth.user?.email,
+        newProfilePic: updatedUser?.profilePic?.substring(0, 50) || "none",
+        profilePicLength: updatedUser?.profilePic?.length || 0,
+      });
+
+      // Update localStorage
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      // Update auth state
+      setAuth((prev) => ({
+        ...prev,
+        user: updatedUser,
+      }));
+    } catch (error) {
+      console.error("Error updating user data:", error);
+    }
+  };
 
   const value = {
     ...auth,
     login,
     register, // keep your existing register function
     logout, // now handles both types
+    updateUserData, // Add the new function
     isAdmin: auth.role === "admin",
     isCustomer: auth.role === "customer",
   };
-  
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

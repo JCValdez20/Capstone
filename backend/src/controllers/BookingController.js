@@ -1,4 +1,5 @@
 const Booking = require("../models/Booking");
+const User = require("../models/User"); // Import User model to ensure it's registered
 const send = require("../utils/Response");
 
 // Helper function to update timestamps
@@ -11,12 +12,12 @@ const updateTimestamp = (bookingData) => {
 exports.getAvailableSlots = async (req, res) => {
   try {
     const { date } = req.params;
-    
+
     const selectedDate = new Date(date);
 
     // All possible time slots - 9 AM to 9 PM
     const allSlots = [
-      "9:00 AM",                                                                                                                            
+      "9:00 AM",
       "10:00 AM",
       "11:00 AM",
       "12:00 PM",
@@ -63,12 +64,34 @@ exports.getAvailableSlots = async (req, res) => {
 // Create a new booking - PREVENTS DOUBLE BOOKING
 exports.createBooking = async (req, res) => {
   try {
-    const { service, date, time, timeSlot, notes, vehicle, specialInstructions } = req.body;
+    const {
+      service,
+      date,
+      time,
+      timeSlot,
+      notes,
+      vehicle,
+      specialInstructions,
+    } = req.body;
     const userId = req.userData.id;
+
+    // Prevent admin users from creating bookings
+    const user = await User.findById(userId);
+    if (!user) {
+      return send.sendErrorMessage(res, 404, "User not found");
+    }
+
+    if (user.roles === "admin") {
+      return send.sendErrorMessage(
+        res,
+        403,
+        "Admin users cannot create bookings. Only customers can make bookings."
+      );
+    }
 
     // Handle both 'time' and 'timeSlot' field names for compatibility
     const selectedTimeSlot = time || timeSlot;
-    
+
     if (!selectedTimeSlot) {
       return send.sendErrorMessage(res, 400, "Time slot is required");
     }
@@ -111,14 +134,14 @@ exports.createBooking = async (req, res) => {
       service,
       date: selectedDate,
       timeSlot: selectedTimeSlot,
-      vehicle: vehicle || 'motorcycle', // Default to motorcycle if not provided
+      vehicle: vehicle || "motorcycle", // Default to motorcycle if not provided
       notes: notes || specialInstructions || "",
       status: "pending",
       createdAt: new Date(),
     });
 
     const booking = await Booking.create(bookingData);
-    
+
     return send.sendResponseMessage(
       res,
       201,
@@ -134,11 +157,13 @@ exports.createBooking = async (req, res) => {
 exports.getUserBookings = async (req, res) => {
   try {
     const userId = req.userData.id;
-    
-    const bookings = await Booking.find({ user: userId })
-      .sort({ date: -1, createdAt: -1 });
-      // Remove populate to avoid schema issues
-    
+
+    const bookings = await Booking.find({ user: userId }).sort({
+      date: -1,
+      createdAt: -1,
+    });
+    // Remove populate to avoid schema issues
+
     return send.sendResponseMessage(
       res,
       200,
@@ -154,28 +179,54 @@ exports.getUserBookings = async (req, res) => {
 exports.getAllBookings = async (req, res) => {
   try {
     const { status, date, limit = 50, page = 1 } = req.query;
-    
+
     let query = {};
-    
-    if (status && status !== 'all') {
+
+    if (status && status !== "all") {
       query.status = status;
     }
-    
+
     if (date) {
       const selectedDate = new Date(date);
       query.date = selectedDate;
     }
-    
+
     const skip = (page - 1) * parseInt(limit);
-    
-    const bookings = await Booking.find(query)
+
+    let bookings = await Booking.find(query)
+      .populate("user", "first_name last_name email") // Populate user data
       .sort({ date: -1, createdAt: -1 })
       .limit(parseInt(limit))
       .skip(skip);
-      // Remove populate to avoid schema issues
-    
+
+    // Handle bookings with missing user data (assign to customers only)
+    const userCount = await User.countDocuments();
+    if (userCount > 0) {
+      const defaultUser = await User.findOne({ roles: "customer" });
+
+      if (defaultUser) {
+        for (let i = 0; i < bookings.length; i++) {
+          if (!bookings[i].user) {
+            // Update this booking with a valid customer user ID
+            await Booking.findByIdAndUpdate(bookings[i]._id, {
+              user: defaultUser._id,
+              updatedAt: new Date(),
+            });
+
+            // Update the booking in our current result set
+            bookings[i].user = {
+              _id: defaultUser._id,
+              first_name: defaultUser.first_name,
+              last_name: defaultUser.last_name,
+              email: defaultUser.email,
+            };
+          }
+        }
+      }
+    }
+
     const total = await Booking.countDocuments(query);
-    
+
     return send.sendResponseMessage(
       res,
       200,
@@ -184,8 +235,8 @@ exports.getAllBookings = async (req, res) => {
         pagination: {
           current: parseInt(page),
           total: Math.ceil(total / parseInt(limit)),
-          count: total
-        }
+          count: total,
+        },
       },
       "Bookings retrieved successfully"
     );
@@ -232,7 +283,27 @@ exports.cancelBooking = async (req, res) => {
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, rejectionReason } = req.body;
+
+    // Restrict admin status updates to only: confirmed, completed, no-show, rejected
+    const allowedAdminStatuses = ["confirmed", "completed", "no-show", "rejected"];
+    
+    if (!allowedAdminStatuses.includes(status)) {
+      return send.sendErrorMessage(
+        res, 
+        400, 
+        `Invalid status. Admin can only update status to: ${allowedAdminStatuses.join(', ')}`
+      );
+    }
+
+    // Validate rejection reason is provided when rejecting a booking
+    if (status === "rejected" && (!rejectionReason || rejectionReason.trim() === "")) {
+      return send.sendErrorMessage(
+        res,
+        400,
+        "Rejection reason is required when rejecting a booking"
+      );
+    }
 
     const booking = await Booking.findById(id);
     if (!booking) {
@@ -245,21 +316,21 @@ exports.updateBookingStatus = async (req, res) => {
     const updatedData = updateTimestamp({
       status,
       notes: notes || booking.notes,
+      rejectionReason: status === "rejected" ? rejectionReason : booking.rejectionReason,
     });
 
     const updatedBooking = await Booking.findByIdAndUpdate(id, updatedData, {
       new: true,
       runValidators: true,
-    });
-    // Remove populate to avoid schema issues
+    }).populate("user", "first_name last_name email"); // Populate user data
 
     // 🔥 AVAILABILITY LOGIC EXPLANATION:
     let message = `Booking ${status} successfully`;
 
-    if (status === "cancelled" || status === "no-show") {
+    if (status === "cancelled" || status === "no-show" || status === "rejected") {
       message += " - Time slot is now available for booking";
     } else if (
-      (previousStatus === "cancelled" || previousStatus === "no-show") &&
+      (previousStatus === "cancelled" || previousStatus === "no-show" || previousStatus === "rejected") &&
       (status === "pending" || status === "confirmed")
     ) {
       message += " - Time slot is now occupied";

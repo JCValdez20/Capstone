@@ -15,6 +15,7 @@ import GoogleCallbackHandler from "./utils/GoogleCallbackHandler.jsx";
 import AppSidebar from "./components/Sidebar.jsx";
 import AuthRedirect from "./utils/AuthRedirect.jsx";
 import BookingHistory from "./pages/user/dashboard/BookingHistory.jsx";
+import Profile from "./pages/user/profile/Profile.jsx";
 import AdminProtected from "./utils/AdminRoute.jsx";
 import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
@@ -83,6 +84,14 @@ const router = createBrowserRouter([
         element: (
           <AppSidebar>
             <BookingHistory />
+          </AppSidebar>
+        ),
+      },
+      {
+        path: "/profile",
+        element: (
+          <AppSidebar>
+            <Profile />
           </AppSidebar>
         ),
       },

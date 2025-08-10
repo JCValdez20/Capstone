@@ -1,10 +1,10 @@
-import axios from './axios';
+import axios from "./axios";
 
 class BookingService {
   // Create a new booking
   async createBooking(bookingData) {
     try {
-      const response = await axios.post('/bookings/create', bookingData);
+      const response = await axios.post("/bookings/create", bookingData);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -14,7 +14,7 @@ class BookingService {
   // Get user's bookings
   async getUserBookings(params = {}) {
     try {
-      const response = await axios.get('/bookings/my-bookings', { params });
+      const response = await axios.get("/bookings/my-bookings", { params });
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -24,12 +24,15 @@ class BookingService {
   // Get available time slots for a date
   async getAvailableSlots(date) {
     try {
-      const formattedDate = typeof date === 'string' ? date : date.toISOString().split('T')[0];
-      const response = await axios.get(`/bookings/available-slots/${formattedDate}`);
-      
+      const formattedDate =
+        typeof date === "string" ? date : date.toISOString().split("T")[0];
+      const response = await axios.get(
+        `/bookings/available-slots/${formattedDate}`
+      );
+
       // Transform the response to match frontend expectations
       const availableSlots = response.data.data?.availableSlots || [];
-      return availableSlots.map(slot => ({ time: slot }));
+      return availableSlots.map((slot) => ({ time: slot }));
     } catch (error) {
       throw this.handleError(error);
     }
@@ -48,7 +51,7 @@ class BookingService {
   // Admin: Get all bookings
   async getAllBookings(params = {}) {
     try {
-      const response = await axios.get('/bookings/all', { params });
+      const response = await axios.get("/bookings/all", { params });
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -56,12 +59,15 @@ class BookingService {
   }
 
   // Admin: Update booking status
-  async updateBookingStatus(bookingId, status, notes = '') {
+  async updateBookingStatus(bookingId, status, notes = "") {
     try {
-      const response = await axios.patch(`/bookings/update-status/${bookingId}`, {
-        status,
-        notes
-      });
+      const response = await axios.patch(
+        `/bookings/update-status/${bookingId}`,
+        {
+          status,
+          notes,
+        }
+      );
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -71,7 +77,7 @@ class BookingService {
   // Admin: Get booking statistics
   async getBookingStats() {
     try {
-      const response = await axios.get('/bookings/stats');
+      const response = await axios.get("/bookings/stats");
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -85,7 +91,7 @@ class BookingService {
       return {
         isAvailable: response.data.availableSlots.includes(timeSlot),
         alternativeSlots: response.data.availableSlots,
-        totalAvailable: response.data.availableCount
+        totalAvailable: response.data.availableCount,
       };
     } catch (error) {
       throw this.handleError(error);
@@ -94,9 +100,9 @@ class BookingService {
 
   // Helper method to get slot status
   getSlotStatus(availableSlots, bookedSlots, timeSlot) {
-    if (availableSlots.includes(timeSlot)) return 'available';
-    if (bookedSlots.includes(timeSlot)) return 'booked';
-    return 'unknown';
+    if (availableSlots.includes(timeSlot)) return "available";
+    if (bookedSlots.includes(timeSlot)) return "booked";
+    return "unknown";
   }
 
   // Error handling
@@ -104,7 +110,7 @@ class BookingService {
     if (error.response?.data?.message) {
       return new Error(error.response.data.message);
     }
-    return new Error(error.message || 'An unexpected error occurred');
+    return new Error(error.message || "An unexpected error occurred");
   }
 }
 

@@ -10,7 +10,11 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  // Check for admin token first, then regular user token
+  const adminToken = localStorage.getItem("adminToken");
+  const userToken = localStorage.getItem("token");
+
+  const token = adminToken || userToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

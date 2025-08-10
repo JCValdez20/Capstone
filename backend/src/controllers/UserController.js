@@ -20,15 +20,18 @@ exports.userLogin = async (req, res) => {
       expiresIn: "1h",
     });
 
+    // Return ALL user data from database (excluding password)
     return res.status(200).json({
       token,
       user: {
         id: user._id,
         first_name: user.first_name,
         last_name: user.last_name,
-        name: user.name, // Add combined name
+        name: `${user.first_name} ${user.last_name}`,
         email: user.email,
-        role: user.role, // Standardized to singular
+        role: user.roles,
+        roles: user.roles,
+        profilePic: user.profilePic || "", // This will include any updated profilePic
         isGoogleUser: user.isGoogleUser || false,
       },
     });
@@ -48,7 +51,9 @@ exports.adminLogin = async (req, res) => {
 
     // Check if user is an admin
     if (user.roles !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admin privileges required." });
+      return res
+        .status(403)
+        .json({ message: "Access denied. Admin privileges required." });
     }
 
     if (!(await argon2.verify(user.password, password))) {
@@ -56,26 +61,29 @@ exports.adminLogin = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { 
+      {
         id: user._id,
         email: user.email,
-        roles: user.roles 
-      }, 
-      process.env.SECRET_KEY, 
+        roles: user.roles,
+      },
+      process.env.SECRET_KEY,
       {
         expiresIn: "8h", // Longer session for admin
       }
     );
 
+    // Return ALL user data from database (excluding password)
     return res.status(200).json({
       token,
       user: {
         id: user._id,
         first_name: user.first_name,
         last_name: user.last_name,
-        name: user.name,
+        name: `${user.first_name} ${user.last_name}`,
         email: user.email,
-        role: user.roles, // Use roles field for admin
+        role: user.roles,
+        roles: user.roles,
+        profilePic: user.profilePic || "", // This will include any updated profilePic
         isGoogleUser: user.isGoogleUser || false,
       },
     });
@@ -178,11 +186,10 @@ exports.updateUser = async (req, res) => {
       updateData.password = await argon2.hash(updateData.password);
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedUser) {
       return send.sendErrorMessage(res, 404, new Error("User not found"));
@@ -202,9 +209,9 @@ exports.updateUser = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deletedUser = await User.findByIdAndDelete(id);
-    
+
     if (!deletedUser) {
       return send.sendErrorMessage(res, 404, new Error("User not found"));
     }
@@ -214,6 +221,90 @@ exports.deleteUser = async (req, res) => {
       200,
       { id: deletedUser._id },
       "User deleted successfully"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+exports.getCurrentUser = async (req, res) => {
+  try {
+    const userId = req.userData.id;
+    const user = await User.findById(userId).select("-password");
+
+    if (!user) {
+      return send.sendErrorMessage(res, 404, new Error("User not found"));
+    }
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      user,
+      "Current user retrieved successfully"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.userData.id;
+    const updateData = req.body;
+
+    // Remove sensitive fields that shouldn't be updated via this endpoint
+    delete updateData.password;
+    delete updateData.roles;
+    delete updateData.email; // Email updates might need separate verification
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
+
+    if (!updatedUser) {
+      return send.sendErrorMessage(res, 404, new Error("User not found"));
+    }
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      updatedUser,
+      "Profile updated successfully"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+exports.updateProfilePicture = async (req, res) => {
+  try {
+    const userId = req.userData.id;
+    const { profilePic } = req.body;
+
+    if (!profilePic) {
+      return send.sendErrorMessage(
+        res,
+        400,
+        new Error("Profile picture URL is required")
+      );
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return send.sendErrorMessage(res, 404, new Error("User not found"));
+    }
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      updatedUser, // Return the full user object
+      "Profile picture updated successfully"
     );
   } catch (error) {
     return send.sendErrorMessage(res, 500, error);
