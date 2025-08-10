@@ -286,18 +286,28 @@ exports.updateBookingStatus = async (req, res) => {
     const { status, notes, rejectionReason } = req.body;
 
     // Restrict admin status updates to only: confirmed, completed, no-show, rejected
-    const allowedAdminStatuses = ["confirmed", "completed", "no-show", "rejected"];
-    
+    const allowedAdminStatuses = [
+      "confirmed",
+      "completed",
+      "no-show",
+      "rejected",
+    ];
+
     if (!allowedAdminStatuses.includes(status)) {
       return send.sendErrorMessage(
-        res, 
-        400, 
-        `Invalid status. Admin can only update status to: ${allowedAdminStatuses.join(', ')}`
+        res,
+        400,
+        `Invalid status. Admin can only update status to: ${allowedAdminStatuses.join(
+          ", "
+        )}`
       );
     }
 
     // Validate rejection reason is provided when rejecting a booking
-    if (status === "rejected" && (!rejectionReason || rejectionReason.trim() === "")) {
+    if (
+      status === "rejected" &&
+      (!rejectionReason || rejectionReason.trim() === "")
+    ) {
       return send.sendErrorMessage(
         res,
         400,
@@ -316,7 +326,8 @@ exports.updateBookingStatus = async (req, res) => {
     const updatedData = updateTimestamp({
       status,
       notes: notes || booking.notes,
-      rejectionReason: status === "rejected" ? rejectionReason : booking.rejectionReason,
+      rejectionReason:
+        status === "rejected" ? rejectionReason : booking.rejectionReason,
     });
 
     const updatedBooking = await Booking.findByIdAndUpdate(id, updatedData, {
@@ -327,10 +338,16 @@ exports.updateBookingStatus = async (req, res) => {
     // 🔥 AVAILABILITY LOGIC EXPLANATION:
     let message = `Booking ${status} successfully`;
 
-    if (status === "cancelled" || status === "no-show" || status === "rejected") {
+    if (
+      status === "cancelled" ||
+      status === "no-show" ||
+      status === "rejected"
+    ) {
       message += " - Time slot is now available for booking";
     } else if (
-      (previousStatus === "cancelled" || previousStatus === "no-show" || previousStatus === "rejected") &&
+      (previousStatus === "cancelled" ||
+        previousStatus === "no-show" ||
+        previousStatus === "rejected") &&
       (status === "pending" || status === "confirmed")
     ) {
       message += " - Time slot is now occupied";

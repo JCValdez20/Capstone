@@ -147,7 +147,7 @@ class AdminService {
   async updateBookingStatus(id, status, notes = "", rejectionReason = "") {
     try {
       const payload = { status, notes };
-      
+
       // Add rejection reason if status is rejected
       if (status === "rejected" && rejectionReason) {
         payload.rejectionReason = rejectionReason;

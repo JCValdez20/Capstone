@@ -178,7 +178,11 @@ const AdminBookings = () => {
     if (!editingBooking) return;
 
     // Validate rejection reason if status is rejected
-    if (editingBooking.status === "rejected" && (!editingBooking.rejectionReason || editingBooking.rejectionReason.trim() === "")) {
+    if (
+      editingBooking.status === "rejected" &&
+      (!editingBooking.rejectionReason ||
+        editingBooking.rejectionReason.trim() === "")
+    ) {
       toast.error("Rejection reason required", {
         description: "Please provide a valid reason for rejecting this booking",
       });
@@ -191,7 +195,7 @@ const AdminBookings = () => {
       // Update booking status with rejection reason if applicable
       const updateData = {
         status: editingBooking.status,
-        notes: editingBooking.notes
+        notes: editingBooking.notes,
       };
 
       if (editingBooking.status === "rejected") {
@@ -217,9 +221,10 @@ const AdminBookings = () => {
       setRejectionReason("");
 
       toast.success("Booking updated successfully", {
-        description: editingBooking.status === "rejected" 
-          ? "The booking has been rejected with the provided reason"
-          : "The booking has been updated with your changes",
+        description:
+          editingBooking.status === "rejected"
+            ? "The booking has been rejected with the provided reason"
+            : "The booking has been updated with your changes",
       });
 
       // Refresh to ensure consistency
@@ -706,16 +711,17 @@ const AdminBookings = () => {
                                     </div>
                                   )}
 
-                                  {booking.status === "rejected" && booking.rejectionReason && (
-                                    <div className="bg-red-50 p-3 rounded border border-red-200">
-                                      <p className="text-sm font-medium text-red-800">
-                                        Rejection Reason:
-                                      </p>
-                                      <p className="text-sm text-red-700">
-                                        {booking.rejectionReason}
-                                      </p>
-                                    </div>
-                                  )}
+                                  {booking.status === "rejected" &&
+                                    booking.rejectionReason && (
+                                      <div className="bg-red-50 p-3 rounded border border-red-200">
+                                        <p className="text-sm font-medium text-red-800">
+                                          Rejection Reason:
+                                        </p>
+                                        <p className="text-sm text-red-700">
+                                          {booking.rejectionReason}
+                                        </p>
+                                      </div>
+                                    )}
                                 </div>
                               </div>
 
@@ -936,12 +942,17 @@ const AdminBookings = () => {
 
                   {editingBooking.status === "rejected" && (
                     <div className="grid gap-2">
-                      <Label htmlFor="rejectionReason" className="text-red-700 font-medium">
+                      <Label
+                        htmlFor="rejectionReason"
+                        className="text-red-700 font-medium"
+                      >
                         Rejection Reason *
                       </Label>
                       <Textarea
                         id="rejectionReason"
-                        value={editingBooking.rejectionReason || rejectionReason}
+                        value={
+                          editingBooking.rejectionReason || rejectionReason
+                        }
                         onChange={(e) => {
                           setRejectionReason(e.target.value);
                           setEditingBooking({
@@ -1036,12 +1047,18 @@ const AdminBookings = () => {
           </Dialog>
 
           {/* Reject Booking Dialog */}
-          <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <Dialog
+            open={isRejectDialogOpen}
+            onOpenChange={setIsRejectDialogOpen}
+          >
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-red-800">Reject Booking</DialogTitle>
+                <DialogTitle className="text-red-800">
+                  Reject Booking
+                </DialogTitle>
                 <DialogDescription>
-                  Please provide a clear reason for rejecting this booking. This reason will be visible to the customer.
+                  Please provide a clear reason for rejecting this booking. This
+                  reason will be visible to the customer.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -1051,15 +1068,21 @@ const AdminBookings = () => {
                       Booking Details:
                     </p>
                     <p className="text-sm text-gray-600">
-                      {bookingToReject.service} - {new Date(bookingToReject.date).toLocaleDateString()} at {bookingToReject.timeSlot || bookingToReject.time}
+                      {bookingToReject.service} -{" "}
+                      {new Date(bookingToReject.date).toLocaleDateString()} at{" "}
+                      {bookingToReject.timeSlot || bookingToReject.time}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Customer: {bookingToReject.user?.first_name} {bookingToReject.user?.last_name}
+                      Customer: {bookingToReject.user?.first_name}{" "}
+                      {bookingToReject.user?.last_name}
                     </p>
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="rejection-reason" className="text-red-700 font-medium">
+                  <Label
+                    htmlFor="rejection-reason"
+                    className="text-red-700 font-medium"
+                  >
                     Rejection Reason *
                   </Label>
                   <Textarea
