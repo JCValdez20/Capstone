@@ -32,7 +32,6 @@ exports.loginSuccess = async (req, res) => {
 
     res.redirect(redirectUrl);
   } catch (error) {
-    console.error("Login error:", error);
     const clientUrl = process.env.CLIENT_URL.replace(/\/$/, "");
     res.redirect(`${clientUrl}/login?error=auth_failed`);
   }
@@ -42,7 +41,6 @@ exports.loginFailed = async (req, res) => {
   try {
     res.redirect(`${process.env.CLIENT_URL}?error=login_failed`);
   } catch (error) {
-    console.error("Login failed error:", error);
     res.redirect(`${process.env.CLIENT_URL}?error=server_error`);
   }
 };
@@ -66,13 +64,12 @@ exports.googleLogout = (req, res) => {
   try {
     req.logout((err) => {
       if (err) {
-        console.error("Logout error:", err);
         return res.redirect(`${process.env.CLIENT_URL}?error=logout_failed`);
       }
 
       req.session.destroy((err) => {
         if (err) {
-          console.error("Session destroy error:", err);
+          // Silent error handling
         }
 
         res.clearCookie("connect.sid");
@@ -81,7 +78,6 @@ exports.googleLogout = (req, res) => {
       });
     });
   } catch (error) {
-    console.error("Google logout error:", error);
     res.redirect(`${process.env.CLIENT_URL}?error=logout_failed`);
   }
 };

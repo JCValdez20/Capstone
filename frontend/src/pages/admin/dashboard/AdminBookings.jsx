@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Calendar,
   Clock,
@@ -34,9 +29,17 @@ import {
   XCircle,
   AlertCircle,
   Edit3,
-  Trash2,
+  Search,
   RefreshCw,
+  MoreVertical,
+  FileText,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AdminSidebar from "@/components/AdminSidebar";
 import adminService from "@/services/adminService";
@@ -46,37 +49,63 @@ const AdminBookings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingBooking, setEditingBooking] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [bookingToDelete, setBookingToDelete] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [bookingToReject, setBookingToReject] = useState(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [bookingToReject, setBookingToReject] = useState(null);
 
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
-      const filters = {};
-      if (filterStatus !== "all") {
-        filters.status = filterStatus;
+      console.log("Fetching bookings...");
+      const response = await adminService.getAllBookings();
+      console.log("Raw API Response:", response);
+
+      // Ensure we always set an array
+      let bookingsData = [];
+
+      // The API returns { bookings: [...], pagination: {...} }
+      if (response && response.bookings && Array.isArray(response.bookings)) {
+        bookingsData = response.bookings;
+        console.log("Using response.bookings:", bookingsData);
+      } else if (
+        response &&
+        response.data &&
+        response.data.bookings &&
+        Array.isArray(response.data.bookings)
+      ) {
+        bookingsData = response.data.bookings;
+        console.log("Using response.data.bookings:", bookingsData);
+      } else if (response && response.data && Array.isArray(response.data)) {
+        bookingsData = response.data;
+        console.log("Using response.data:", bookingsData);
+      } else if (response && Array.isArray(response)) {
+        bookingsData = response;
+        console.log("Using response directly:", bookingsData);
+      } else {
+        console.warn("Unexpected response format:", response);
+        console.warn("Response type:", typeof response);
+        if (response && typeof response === "object") {
+          console.warn("Response keys:", Object.keys(response));
+        }
       }
 
-      const response = await adminService.getAllBookings(filters);
-      const bookingsArray = response.data?.bookings || response.data || [];
-      setBookings(bookingsArray);
-    } catch (error) {
-      console.error("Error fetching bookings:", error);
-      setError(error.message || "Failed to load bookings");
-      toast.error("Failed to load bookings", {
-        description: error.message || "Please try again later",
-      });
+      console.log("Final processed bookings data:", bookingsData);
+      console.log("Bookings array length:", bookingsData.length);
+      setBookings(bookingsData);
+      setError("");
+    } catch (err) {
+      console.error("Error fetching bookings:", err);
+      console.error("Error details:", err.response?.data || err.message);
+      setError("Failed to load bookings. Please try again.");
+      setBookings([]); // Ensure we always have an array
     } finally {
       setLoading(false);
     }
-  }, [filterStatus]);
+  }, []);
 
   useEffect(() => {
     fetchBookings();
@@ -87,9 +116,9 @@ const AdminBookings = () => {
       setIsUpdating(true);
       await adminService.updateBookingStatus(bookingId, status, notes);
 
-      // Update local state
+      const currentBookings = Array.isArray(bookings) ? bookings : [];
       setBookings(
-        bookings.map((booking) =>
+        currentBookings.map((booking) =>
           booking._id === bookingId
             ? { ...booking, status, notes: notes || booking.notes }
             : booking
@@ -100,7 +129,6 @@ const AdminBookings = () => {
         description: `The booking has been ${status}`,
       });
 
-      // Refresh to get updated data
       fetchBookings();
     } catch (error) {
       console.error("Error updating booking status:", error);
@@ -141,13 +169,13 @@ const AdminBookings = () => {
       await adminService.updateBookingStatus(
         bookingToReject._id,
         "rejected",
-        bookingToReject.notes || "",
-        rejectionReason
+        "", // notes - empty for rejection
+        rejectionReason // pass rejection reason as 4th parameter
       );
 
-      // Update local state
+      const currentBookings = Array.isArray(bookings) ? bookings : [];
       setBookings(
-        bookings.map((booking) =>
+        currentBookings.map((booking) =>
           booking._id === bookingToReject._id
             ? { ...booking, status: "rejected", rejectionReason }
             : booking
@@ -159,10 +187,9 @@ const AdminBookings = () => {
       setRejectionReason("");
 
       toast.success("Booking rejected successfully", {
-        description: "The booking has been rejected with the provided reason",
+        description: "Customer has been notified of the rejection",
       });
 
-      // Refresh to ensure consistency
       fetchBookings();
     } catch (error) {
       console.error("Error rejecting booking:", error);
@@ -174,51 +201,23 @@ const AdminBookings = () => {
     }
   };
 
-  const handleSaveBooking = async () => {
+  const handleUpdateBooking = async (e) => {
+    e.preventDefault();
     if (!editingBooking) return;
-
-    // Validate rejection reason if status is rejected
-    if (
-      editingBooking.status === "rejected" &&
-      (!editingBooking.rejectionReason ||
-        editingBooking.rejectionReason.trim() === "")
-    ) {
-      toast.error("Rejection reason required", {
-        description: "Please provide a valid reason for rejecting this booking",
-      });
-      return;
-    }
 
     try {
       setIsUpdating(true);
+      await adminService.updateBooking(editingBooking._id, editingBooking);
 
-      // Update booking status with rejection reason if applicable
-      const updateData = {
-        status: editingBooking.status,
-        notes: editingBooking.notes,
-      };
-
-      if (editingBooking.status === "rejected") {
-        updateData.rejectionReason = editingBooking.rejectionReason;
-      }
-
-      await adminService.updateBookingStatus(
-        editingBooking._id,
-        editingBooking.status,
-        editingBooking.notes,
-        editingBooking.rejectionReason
-      );
-
-      // Update local state
+      const currentBookings = Array.isArray(bookings) ? bookings : [];
       setBookings(
-        bookings.map((booking) =>
+        currentBookings.map((booking) =>
           booking._id === editingBooking._id ? editingBooking : booking
         )
       );
 
       setIsEditDialogOpen(false);
       setEditingBooking(null);
-      setRejectionReason("");
 
       toast.success("Booking updated successfully", {
         description:
@@ -227,7 +226,6 @@ const AdminBookings = () => {
             : "The booking has been updated with your changes",
       });
 
-      // Refresh to ensure consistency
       fetchBookings();
     } catch (error) {
       console.error("Error updating booking:", error);
@@ -239,94 +237,65 @@ const AdminBookings = () => {
     }
   };
 
-  const handleDeleteBooking = async () => {
-    if (!bookingToDelete) return;
+  // Filter and search bookings
+  const safeBookings = Array.isArray(bookings) ? bookings : [];
+  const filteredBookings = safeBookings.filter((booking) => {
+    const matchesStatus =
+      filterStatus === "all" || booking.status === filterStatus;
+    const matchesSearch =
+      searchQuery === "" ||
+      booking.service?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.user?.first_name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      booking.user?.last_name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      booking.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.vehicle?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    try {
-      setIsUpdating(true);
-      await adminService.deleteBooking(bookingToDelete._id);
-
-      // Remove from local state
-      setBookings(
-        bookings.filter((booking) => booking._id !== bookingToDelete._id)
-      );
-
-      setIsDeleteDialogOpen(false);
-      setBookingToDelete(null);
-
-      toast.success("Booking deleted successfully", {
-        description: "The booking has been permanently deleted",
-      });
-    } catch (error) {
-      console.error("Error deleting booking:", error);
-      toast.error("Failed to delete booking", {
-        description: error.message || "Please try again",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const filteredBookings = bookings.filter((booking) => {
-    if (filterStatus === "all") return true;
-    return booking.status === filterStatus;
+    return matchesStatus && matchesSearch;
   });
 
-  const pendingCount = bookings.filter((b) => b.status === "pending").length;
-  const confirmedCount = bookings.filter(
+  const pendingCount = safeBookings.filter(
+    (b) => b.status === "pending"
+  ).length;
+  const confirmedCount = safeBookings.filter(
     (b) => b.status === "confirmed"
   ).length;
-  const noShowCount = bookings.filter((b) => b.status === "no-show").length;
-  const rejectedCount = bookings.filter((b) => b.status === "rejected").length;
-  const completedCount = bookings.filter(
+  const completedCount = safeBookings.filter(
     (b) => b.status === "completed"
   ).length;
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "pending":
-        return <AlertCircle className="w-4 h-4" />;
-      case "confirmed":
-        return <CheckCircle className="w-4 h-4" />;
-      case "no-show":
-        return <XCircle className="w-4 h-4" />;
-      case "rejected":
-        return <XCircle className="w-4 h-4" />;
-      case "completed":
-        return <CheckCircle className="w-4 h-4" />;
-      case "cancelled":
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return null;
-    }
-  };
+  const getStatusBadge = (status) => {
+    const variants = {
+      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      confirmed: "bg-blue-100 text-blue-800 border-blue-200",
+      completed: "bg-green-100 text-green-800 border-green-200",
+      cancelled: "bg-gray-100 text-gray-800 border-gray-200",
+      rejected: "bg-red-100 text-red-800 border-red-200",
+      "no-show": "bg-orange-100 text-orange-800 border-orange-200",
+    };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "pending":
-        return "border-orange-200 text-orange-800 bg-orange-50";
-      case "confirmed":
-        return "border-green-200 text-green-800 bg-green-50";
-      case "no-show":
-        return "border-red-200 text-red-800 bg-red-50";
-      case "rejected":
-        return "border-red-200 text-red-800 bg-red-50";
-      case "completed":
-        return "border-blue-200 text-blue-800 bg-blue-50";
-      case "cancelled":
-        return "border-gray-200 text-gray-800 bg-gray-50";
-      default:
-        return "border-gray-200 text-gray-800 bg-gray-50";
-    }
-  };
+    const icons = {
+      pending: <Clock className="w-3 h-3" />,
+      confirmed: <CheckCircle className="w-3 h-3" />,
+      completed: <CheckCircle className="w-3 h-3" />,
+      cancelled: <XCircle className="w-3 h-3" />,
+      rejected: <XCircle className="w-3 h-3" />,
+      "no-show": <AlertCircle className="w-3 h-3" />,
+    };
 
-  // Group bookings by date for calendar-like display
-  const bookingsByDate = filteredBookings.reduce((acc, booking) => {
-    const date = new Date(booking.date).toISOString().split("T")[0];
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(booking);
-    return acc;
-  }, {});
+    return (
+      <Badge
+        variant="outline"
+        className={`${variants[status]} border font-medium flex items-center gap-1.5 px-2.5 py-1`}
+      >
+        {icons[status]}
+        <span className="capitalize text-xs">{status}</span>
+      </Badge>
+    );
+  };
 
   if (loading) {
     return (
@@ -357,7 +326,7 @@ const AdminBookings = () => {
     );
   }
 
-  if (error && bookings.length === 0) {
+  if (error && safeBookings.length === 0) {
     return (
       <AdminSidebar>
         <div className="p-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -384,745 +353,514 @@ const AdminBookings = () => {
 
   return (
     <AdminSidebar>
-      <div className="p-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-        <div className="max-w-[1400px] mx-auto space-y-8">
-          {/* Enhanced Header */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
-              <div className="flex items-center space-x-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Calendar className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold text-gray-900">
-                    Booking Management
-                  </h1>
-                  <p className="text-lg text-gray-600 mt-2">
-                    Review and manage customer bookings
-                  </p>
-                  <div className="flex items-center space-x-4 mt-3">
-                    <span className="text-sm text-gray-500">
-                      Total: {bookings.length} bookings
-                    </span>
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-sm text-green-600 font-medium">
-                      Live Updates
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-                <Button
-                  onClick={fetchBookings}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <RefreshCw className="w-5 h-5 mr-2" />
-                  Refresh Bookings
-                </Button>
-              </div>
+      <div className="min-h-screen bg-gray-50/50">
+        <div className="p-4 lg:p-6 space-y-6">
+          {/* Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+                Booking Management
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Manage customer bookings and appointments
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={fetchBookings}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                disabled={loading}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
             </div>
           </div>
 
-          {/* Enhanced Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-base font-semibold text-blue-900">
-                  Total Bookings
-                </CardTitle>
-                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-md">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-3xl font-bold text-blue-900 mb-2">
-                  {bookings.length}
-                </div>
-                <p className="text-sm text-blue-700">All bookings</p>
-                <div className="mt-4 w-full bg-blue-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{ width: "100%" }}
-                  ></div>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {safeBookings.length}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-base font-semibold text-orange-900">
-                  Pending
-                </CardTitle>
-                <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-md">
-                  <AlertCircle className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-3xl font-bold text-orange-900 mb-2">
-                  {pendingCount}
-                </div>
-                <p className="text-sm text-orange-700">Require attention</p>
-                <div className="mt-4 w-full bg-orange-200 rounded-full h-2">
-                  <div
-                    className="bg-orange-600 h-2 rounded-full"
-                    style={{
-                      width: `${
-                        bookings.length > 0
-                          ? (pendingCount / bookings.length) * 100
-                          : 0
-                      }%`,
-                    }}
-                  ></div>
+            <Card className="border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {pendingCount}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-yellow-50 rounded-lg">
+                    <Clock className="w-5 h-5 text-yellow-600" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-base font-semibold text-green-900">
-                  Confirmed
-                </CardTitle>
-                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-md">
-                  <CheckCircle className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-3xl font-bold text-green-900 mb-2">
-                  {confirmedCount}
-                </div>
-                <p className="text-sm text-green-700">Ready to serve</p>
-                <div className="mt-4 w-full bg-green-200 rounded-full h-2">
-                  <div
-                    className="bg-green-600 h-2 rounded-full"
-                    style={{
-                      width: `${
-                        bookings.length > 0
-                          ? (confirmedCount / bookings.length) * 100
-                          : 0
-                      }%`,
-                    }}
-                  ></div>
+            <Card className="border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Confirmed
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {confirmedCount}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-base font-semibold text-red-900">
-                  No Show
-                </CardTitle>
-                <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center shadow-md">
-                  <XCircle className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-3xl font-bold text-red-900 mb-2">
-                  {noShowCount}
-                </div>
-                <p className="text-sm text-red-700">Did not show up</p>
-                <div className="mt-4 w-full bg-red-200 rounded-full h-2">
-                  <div
-                    className="bg-red-600 h-2 rounded-full"
-                    style={{
-                      width: `${
-                        bookings.length > 0
-                          ? (noShowCount / bookings.length) * 100
-                          : 0
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-base font-semibold text-orange-900">
-                  Rejected
-                </CardTitle>
-                <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-md">
-                  <XCircle className="h-6 w-6 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-3xl font-bold text-orange-900 mb-2">
-                  {rejectedCount}
-                </div>
-                <p className="text-sm text-orange-700">Admin rejected</p>
-                <div className="mt-4 w-full bg-orange-200 rounded-full h-2">
-                  <div
-                    className="bg-orange-600 h-2 rounded-full"
-                    style={{
-                      width: `${
-                        bookings.length > 0
-                          ? (rejectedCount / bookings.length) * 100
-                          : 0
-                      }%`,
-                    }}
-                  ></div>
+            <Card className="border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Completed
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {completedCount}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Filter Section */}
-          <Card className="bg-white rounded-2xl shadow-lg border border-gray-200">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-bold text-gray-900">
-                    Filter Bookings
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 mt-1">
-                    Filter by status to manage bookings
-                  </CardDescription>
-                </div>
-                <div className="hidden md:flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-xl">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-gray-600 font-medium">
-                    {Object.keys(bookingsByDate).length} booking days
-                  </span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
+          {/* Search and Filter */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-4">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="flex h-12 w-full sm:w-64 rounded-xl border border-gray-300 bg-background px-4 py-3 text-base font-medium focus:border-green-500 focus:ring-green-500"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="no-show">No Show</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by service, customer name, email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="sm:w-48">
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="h-10 border-gray-200">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="no-show">No Show</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Bookings Display */}
-          <div className="space-y-6">
-            {Object.entries(bookingsByDate)
-              .sort()
-              .map(([date, dateBookings]) => (
-                <Card
-                  key={date}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-200"
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Calendar className="w-5 h-5 text-green-600" />
-                      <span>
-                        {new Date(date).toLocaleDateString("en-US", {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </span>
-                      <Badge variant="outline" className="ml-auto">
-                        {dateBookings.length} booking
-                        {dateBookings.length !== 1 ? "s" : ""}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {dateBookings
-                        .sort((a, b) =>
-                          (a.timeSlot || a.time || "").localeCompare(
-                            b.timeSlot || b.time || ""
-                          )
-                        )
-                        .map((booking) => (
-                          <div
-                            key={booking._id}
-                            className="border rounded-lg p-6 hover:shadow-md transition-shadow bg-gray-50"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 space-y-3">
-                                <div className="flex items-center space-x-4">
-                                  <div className="flex items-center space-x-2">
-                                    <Clock className="w-4 h-4 text-gray-500" />
-                                    <span className="font-medium text-lg">
-                                      {booking.timeSlot || booking.time}
-                                    </span>
-                                  </div>
-                                  <Badge
-                                    variant="outline"
-                                    className={`flex items-center space-x-1 ${getStatusColor(
-                                      booking.status
-                                    )}`}
-                                  >
-                                    {getStatusIcon(booking.status)}
-                                    <span className="capitalize">
-                                      {booking.status}
-                                    </span>
-                                  </Badge>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <div className="flex items-center space-x-2">
-                                      <User className="w-4 h-4 text-gray-500" />
-                                      <div>
-                                        <p className="font-medium">
-                                          {booking.user?.first_name &&
-                                          booking.user?.last_name
-                                            ? `${booking.user.first_name} ${booking.user.last_name}`
-                                            : booking.user?.email
-                                            ? "Customer"
-                                            : "Legacy Booking"}
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                          {booking.user?.email ||
-                                            "Email not available"}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="ml-6 space-y-1">
-                                      <p className="text-sm">
-                                        <strong>Service:</strong>{" "}
-                                        {booking.service}
-                                      </p>
-                                      <p className="text-sm">
-                                        <strong>Vehicle:</strong>{" "}
-                                        {booking.vehicle || "Motorcycle"}
-                                      </p>
-                                      <p className="text-sm">
-                                        <strong>Booking ID:</strong>{" "}
-                                        {booking._id}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {booking.notes && (
-                                    <div className="bg-white p-3 rounded border">
-                                      <p className="text-sm font-medium text-gray-700">
-                                        Customer Notes:
-                                      </p>
-                                      <p className="text-sm text-gray-600">
-                                        {booking.notes}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {booking.status === "rejected" &&
-                                    booking.rejectionReason && (
-                                      <div className="bg-red-50 p-3 rounded border border-red-200">
-                                        <p className="text-sm font-medium text-red-800">
-                                          Rejection Reason:
-                                        </p>
-                                        <p className="text-sm text-red-700">
-                                          {booking.rejectionReason}
-                                        </p>
-                                      </div>
-                                    )}
-                                </div>
+          {/* Bookings List */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="border-b border-gray-100 pb-4">
+              <CardTitle className="text-lg font-semibold">
+                Bookings ({filteredBookings.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {filteredBookings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <Calendar className="w-12 h-12 mb-4" />
+                  <p className="text-lg font-medium">No Bookings Found</p>
+                  <p className="text-sm">
+                    No bookings match your current filters
+                  </p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[600px]">
+                  <div className="divide-y divide-gray-100">
+                    {filteredBookings.map((booking) => (
+                      <div
+                        key={booking._id}
+                        className="p-4 lg:p-6 hover:bg-gray-50/50 transition-colors"
+                      >
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                          {/* Customer Info */}
+                          <div className="lg:col-span-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-gray-600" />
                               </div>
-
-                              {/* Action Buttons */}
-                              <div className="flex flex-col space-y-2 ml-4">
-                                {booking.status === "pending" && (
-                                  <div className="flex space-x-2">
-                                    <Button
-                                      size="sm"
-                                      className="bg-green-600 hover:bg-green-700 text-white"
-                                      onClick={() =>
-                                        handleStatusUpdate(
-                                          booking._id,
-                                          "confirmed"
-                                        )
-                                      }
-                                      disabled={isUpdating}
-                                    >
-                                      <CheckCircle className="w-4 h-4 mr-1" />
-                                      Confirm
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      className="bg-red-600 hover:bg-red-700 text-white"
-                                      onClick={() => handleQuickReject(booking)}
-                                      disabled={isUpdating}
-                                    >
-                                      <XCircle className="w-4 h-4 mr-1" />
-                                      Reject
-                                    </Button>
-                                  </div>
-                                )}
-
-                                {booking.status === "confirmed" && (
-                                  <div className="flex space-x-2">
-                                    <Button
-                                      size="sm"
-                                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                                      onClick={() =>
-                                        handleStatusUpdate(
-                                          booking._id,
-                                          "completed"
-                                        )
-                                      }
-                                      disabled={isUpdating}
-                                    >
-                                      <CheckCircle className="w-4 h-4 mr-1" />
-                                      Complete
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-red-600 border-red-200 hover:bg-red-50"
-                                      onClick={() =>
-                                        handleStatusUpdate(
-                                          booking._id,
-                                          "no-show"
-                                        )
-                                      }
-                                      disabled={isUpdating}
-                                    >
-                                      <XCircle className="w-4 h-4 mr-1" />
-                                      No Show
-                                    </Button>
-                                  </div>
-                                )}
-
-                                <div className="flex space-x-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleEditBooking(booking)}
-                                    disabled={isUpdating}
-                                  >
-                                    <Edit3 className="w-4 h-4 mr-1" />
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-red-600 border-red-200 hover:bg-red-50"
-                                    onClick={() => {
-                                      setBookingToDelete(booking);
-                                      setIsDeleteDialogOpen(true);
-                                    }}
-                                    disabled={isUpdating}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-1" />
-                                    Delete
-                                  </Button>
-                                </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-gray-900 truncate">
+                                  {booking.user?.first_name &&
+                                  booking.user?.last_name
+                                    ? `${booking.user.first_name} ${booking.user.last_name}`
+                                    : "Customer"}
+                                </p>
+                                <p className="text-sm text-gray-500 truncate">
+                                  {booking.user?.email || "No email"}
+                                </p>
                               </div>
                             </div>
                           </div>
-                        ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
 
-            {Object.keys(bookingsByDate).length === 0 && (
-              <Card className="bg-white rounded-2xl shadow-lg border border-gray-200">
-                <CardContent className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">No bookings found</p>
-                  <p className="text-gray-400 text-sm">
-                    {filterStatus === "all"
-                      ? "Bookings will appear here when customers make reservations"
-                      : `No ${filterStatus} bookings found`}
-                  </p>
-                  <Button
-                    onClick={() => setFilterStatus("all")}
-                    className="mt-4"
-                    variant="outline"
-                  >
-                    Show All Bookings
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                          {/* Booking Details */}
+                          <div className="lg:col-span-4">
+                            <div className="space-y-1">
+                              <p className="font-medium text-gray-900">
+                                {booking.service}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {booking.vehicle || "Motorcycle"}
+                              </p>
+                              <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <Calendar className="w-4 h-4" />
+                                <span>
+                                  {new Date(booking.date).toLocaleDateString()}
+                                </span>
+                                <Clock className="w-4 h-4 ml-2" />
+                                <span>{booking.timeSlot || booking.time}</span>
+                              </div>
+                            </div>
+                          </div>
 
-          {/* Edit Booking Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Edit Booking</DialogTitle>
-                <DialogDescription>
-                  Update booking details and status
-                </DialogDescription>
-              </DialogHeader>
+                          {/* Status */}
+                          <div className="lg:col-span-2 flex items-center">
+                            {getStatusBadge(booking.status)}
+                          </div>
 
-              {editingBooking && (
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="customer">Customer</Label>
-                      <Input
-                        id="customer"
-                        value={
-                          editingBooking.user?.first_name &&
-                          editingBooking.user?.last_name
-                            ? `${editingBooking.user.first_name} ${editingBooking.user.last_name}`
-                            : editingBooking.user?.email
-                            ? "Customer"
-                            : "Legacy Booking"
-                        }
-                        disabled
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="service">Service</Label>
-                      <Input
-                        id="service"
-                        value={editingBooking.service}
-                        disabled
-                      />
-                    </div>
+                          {/* Actions */}
+                          <div className="lg:col-span-3 flex items-center justify-end gap-2">
+                            {booking.status === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleStatusUpdate(booking._id, "confirmed")
+                                  }
+                                  disabled={isUpdating}
+                                  className="text-green-600 border-green-200 hover:bg-green-50"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline ml-1">
+                                    Confirm
+                                  </span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleQuickReject(booking)}
+                                  disabled={isUpdating}
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline ml-1">
+                                    Reject
+                                  </span>
+                                </Button>
+                              </>
+                            )}
+
+                            {booking.status === "confirmed" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleStatusUpdate(booking._id, "completed")
+                                  }
+                                  disabled={isUpdating}
+                                  className="text-green-600 border-green-200 hover:bg-green-50"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline ml-1">
+                                    Complete
+                                  </span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleStatusUpdate(booking._id, "no-show")
+                                  }
+                                  disabled={isUpdating}
+                                  className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                >
+                                  <AlertCircle className="w-4 h-4" />
+                                  <span className="hidden sm:inline ml-1">
+                                    No-Show
+                                  </span>
+                                </Button>
+                              </>
+                            )}
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleEditBooking(booking)}
+                                >
+                                  <Edit3 className="w-4 h-4 mr-2" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                                {booking.status === "pending" && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleQuickReject(booking)}
+                                    className="text-red-600"
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Reject with Reason
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          {/* Notes and Additional Info */}
+                          {(booking.notes || booking.rejectionReason) && (
+                            <div className="lg:col-span-full mt-3 pt-3 border-t border-gray-100">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {booking.notes && (
+                                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <div className="flex items-start gap-2">
+                                      <FileText className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">
+                                          Notes
+                                        </span>
+                                        <p className="text-sm text-blue-900 mt-1 leading-relaxed">
+                                          {booking.notes}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {booking.rejectionReason && (
+                                  <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                    <div className="flex items-start gap-2">
+                                      <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <span className="text-xs font-medium text-red-700 uppercase tracking-wide">
+                                          Rejection Reason
+                                        </span>
+                                        <p className="text-sm text-red-900 mt-1 leading-relaxed">
+                                          {booking.rejectionReason}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={editingBooking.date}
-                        disabled
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="time">Time</Label>
-                      <Input
-                        id="time"
-                        value={editingBooking.timeSlot || editingBooking.time}
-                        disabled
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={editingBooking.status}
-                      onValueChange={(value) =>
-                        setEditingBooking({ ...editingBooking, status: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="no-show">No Show</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={editingBooking.notes || ""}
-                      onChange={(e) =>
-                        setEditingBooking({
-                          ...editingBooking,
-                          notes: e.target.value,
-                        })
-                      }
-                      placeholder="Add any notes about this booking..."
-                      className="resize-none"
-                      rows={4}
-                    />
-                  </div>
-
-                  {editingBooking.status === "rejected" && (
-                    <div className="grid gap-2">
-                      <Label
-                        htmlFor="rejectionReason"
-                        className="text-red-700 font-medium"
-                      >
-                        Rejection Reason *
-                      </Label>
-                      <Textarea
-                        id="rejectionReason"
-                        value={
-                          editingBooking.rejectionReason || rejectionReason
-                        }
-                        onChange={(e) => {
-                          setRejectionReason(e.target.value);
-                          setEditingBooking({
-                            ...editingBooking,
-                            rejectionReason: e.target.value,
-                          });
-                        }}
-                        placeholder="Please provide a clear reason for rejecting this booking..."
-                        className="resize-none border-red-200 focus:border-red-500 focus:ring-red-500"
-                        rows={3}
-                        required
-                      />
-                      <p className="text-sm text-red-600">
-                        A rejection reason is required when rejecting a booking.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                </ScrollArea>
               )}
+            </CardContent>
+          </Card>
+        </div>
 
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSaveBooking}
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? "Saving..." : "Save Changes"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Confirmation Dialog */}
-          <Dialog
-            open={isDeleteDialogOpen}
-            onOpenChange={setIsDeleteDialogOpen}
-          >
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Confirm Deletion</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this booking? This action
-                  cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-
-              {bookingToDelete && (
-                <div className="py-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="font-medium">
-                      {bookingToDelete.user?.first_name &&
-                      bookingToDelete.user?.last_name
-                        ? `${bookingToDelete.user.first_name} ${bookingToDelete.user.last_name}`
-                        : bookingToDelete.user?.email
-                        ? "Customer"
-                        : "Legacy Booking"}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {bookingToDelete.service} -{" "}
-                      {new Date(bookingToDelete.date).toLocaleDateString()} at{" "}
-                      {bookingToDelete.timeSlot || bookingToDelete.time}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={handleDeleteBooking}
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? "Deleting..." : "Delete Booking"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Reject Booking Dialog */}
-          <Dialog
-            open={isRejectDialogOpen}
-            onOpenChange={setIsRejectDialogOpen}
-          >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-red-800">
-                  Reject Booking
-                </DialogTitle>
-                <DialogDescription>
-                  Please provide a clear reason for rejecting this booking. This
-                  reason will be visible to the customer.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {bookingToReject && (
-                  <div className="bg-gray-50 p-3 rounded border">
-                    <p className="text-sm font-medium text-gray-700">
-                      Booking Details:
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {bookingToReject.service} -{" "}
-                      {new Date(bookingToReject.date).toLocaleDateString()} at{" "}
-                      {bookingToReject.timeSlot || bookingToReject.time}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Customer: {bookingToReject.user?.first_name}{" "}
-                      {bookingToReject.user?.last_name}
-                    </p>
-                  </div>
-                )}
+        {/* Edit Booking Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Booking</DialogTitle>
+              <DialogDescription>
+                Update booking details below. Changes will be saved immediately.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateBooking} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="rejection-reason"
-                    className="text-red-700 font-medium"
-                  >
-                    Rejection Reason *
-                  </Label>
-                  <Textarea
-                    id="rejection-reason"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Please provide a clear reason for rejecting this booking (e.g., slot no longer available, maintenance scheduled, etc.)"
-                    className="border-red-200 focus:border-red-500 focus:ring-red-500"
-                    rows={4}
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={editingBooking?.date || ""}
+                    onChange={(e) =>
+                      setEditingBooking({
+                        ...editingBooking,
+                        date: e.target.value,
+                      })
+                    }
                   />
-                  <p className="text-sm text-red-600">
-                    This reason will be shown to the customer.
-                  </p>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="time">Time</Label>
+                  <Input
+                    id="time"
+                    value={
+                      editingBooking?.timeSlot || editingBooking?.time || ""
+                    }
+                    onChange={(e) =>
+                      setEditingBooking({
+                        ...editingBooking,
+                        timeSlot: e.target.value,
+                        time: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., 10:00 AM"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="service">Service</Label>
+                <Input
+                  id="service"
+                  value={editingBooking?.service || ""}
+                  onChange={(e) =>
+                    setEditingBooking({
+                      ...editingBooking,
+                      service: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vehicle">Vehicle</Label>
+                <Input
+                  id="vehicle"
+                  value={editingBooking?.vehicle || ""}
+                  onChange={(e) =>
+                    setEditingBooking({
+                      ...editingBooking,
+                      vehicle: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editingBooking?.status || ""}
+                  onValueChange={(value) =>
+                    setEditingBooking({ ...editingBooking, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="no-show">No Show</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={editingBooking?.notes || ""}
+                  onChange={(e) =>
+                    setEditingBooking({
+                      ...editingBooking,
+                      notes: e.target.value,
+                    })
+                  }
+                  placeholder="Optional notes about this booking..."
+                />
               </div>
               <DialogFooter>
                 <Button
                   type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setIsRejectDialogOpen(false);
-                    setRejectionReason("");
-                    setBookingToReject(null);
-                  }}
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={handleConfirmReject}
-                  disabled={isUpdating || !rejectionReason.trim()}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  {isUpdating ? "Rejecting..." : "Reject Booking"}
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Booking Dialog */}
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Reject Booking</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this booking. The customer
+                will be notified.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="rejectionReason">Rejection Reason</Label>
+                <Textarea
+                  id="rejectionReason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please explain why this booking is being rejected..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsRejectDialogOpen(false);
+                  setRejectionReason("");
+                  setBookingToReject(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleConfirmReject}
+                disabled={isUpdating || !rejectionReason.trim()}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isUpdating ? "Rejecting..." : "Reject Booking"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminSidebar>
   );

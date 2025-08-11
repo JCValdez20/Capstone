@@ -128,7 +128,11 @@ class AdminService {
         params.append("page", filters.page);
       }
 
-      const response = await axios.get(`/admin/bookings?${params.toString()}`);
+      const response = await axios.get(`/admin/bookings?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -137,7 +141,11 @@ class AdminService {
 
   async getBookingStats() {
     try {
-      const response = await axios.get("/admin/bookings/stats");
+      const response = await axios.get("/admin/bookings/stats", {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -146,14 +154,40 @@ class AdminService {
 
   async updateBookingStatus(id, status, notes = "", rejectionReason = "") {
     try {
-      const payload = { status, notes };
+      const payload = { status };
+
+      // Add notes if provided
+      if (notes) {
+        payload.notes = notes;
+      }
 
       // Add rejection reason if status is rejected
       if (status === "rejected" && rejectionReason) {
         payload.rejectionReason = rejectionReason;
       }
 
-      const response = await axios.put(`/admin/bookings/${id}/status`, payload);
+      const response = await axios.put(
+        `/admin/bookings/${id}/status`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${this.getToken()}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  async updateBooking(id, bookingData) {
+    try {
+      const response = await axios.put(`/admin/bookings/${id}`, bookingData, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -162,7 +196,11 @@ class AdminService {
 
   async deleteBooking(id) {
     try {
-      const response = await axios.delete(`/admin/bookings/${id}`);
+      const response = await axios.delete(`/admin/bookings/${id}`, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

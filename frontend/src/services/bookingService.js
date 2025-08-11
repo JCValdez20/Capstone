@@ -107,6 +107,41 @@ class BookingService {
 
   // Error handling
   handleError(error) {
+    console.log("BookingService Error:", error.response?.data || error.message);
+
+    if (error.response?.status === 403) {
+      const message = error.response.data?.message || "Access forbidden";
+      if (message.includes("verify your email")) {
+        return new Error(
+          "Please verify your email address before making bookings. Check your email for the verification code."
+        );
+      }
+      if (message.includes("Admin users cannot")) {
+        return new Error(
+          "Admin users cannot create bookings. Please use a customer account."
+        );
+      }
+      return new Error(message);
+    }
+
+    if (error.response?.status === 401) {
+      const message = error.response.data?.message || "Authentication failed";
+      if (message.includes("log in again")) {
+        return new Error(
+          "Your session has expired. Please log in again to continue."
+        );
+      }
+      return new Error("Your session has expired. Please log in again.");
+    }
+
+    if (error.response?.status === 404) {
+      const message = error.response.data?.message || "Not found";
+      if (message.includes("User not found")) {
+        return new Error("Session expired. Please log in again to continue.");
+      }
+      return new Error(message);
+    }
+
     if (error.response?.data?.message) {
       return new Error(error.response.data.message);
     }

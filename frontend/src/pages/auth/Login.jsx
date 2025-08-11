@@ -3,11 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  // useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "sonner";
-
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -15,13 +19,29 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [searchParams] = useSearchParams();
+  // const [searchParams] = useSearchParams();
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  useEffect(() => {
+    // Check for verification success message (only once)
+    const state = location.state;
+    if (state?.verified && state?.message) {
+      // Use setTimeout to ensure only one toast appears
+      const timeoutId = setTimeout(() => {
+        toast.success("Email Verified!", {
+          description: state.message,
+        });
+      }, 100);
 
+      // Clear the state immediately to prevent multiple toasts
+      window.history.replaceState({}, document.title);
 
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,12 +56,21 @@ const Login = () => {
         });
         navigate("/dashboard");
       } else {
+        // Check if email verification is required
+        if (result.requiresVerification) {
+          navigate("/verify-email", {
+            state: { email: email },
+          });
+          return;
+        }
+
         setError(result.message);
         toast.error("Login failed", {
-          description: result.message || "Please check your credentials and try again.",
+          description:
+            result.message || "Please check your credentials and try again.",
         });
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.");
       toast.error("Login error", {
         description: "An unexpected error occurred. Please try again.",

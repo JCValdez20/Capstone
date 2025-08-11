@@ -144,6 +144,20 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error("Login error:", err);
       clearAuth();
+
+      // Check if it's an email verification error
+      if (
+        err.response?.status === 403 &&
+        err.response?.data?.requiresVerification
+      ) {
+        return {
+          success: false,
+          requiresVerification: true,
+          message: err.response.data.message,
+          email: err.response.data.email,
+        };
+      }
+
       return {
         success: false,
         message: err.response?.data?.message || "Login failed",

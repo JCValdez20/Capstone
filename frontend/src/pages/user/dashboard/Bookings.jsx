@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import {
 
 const Bookings = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
@@ -200,11 +202,40 @@ const Bookings = () => {
       }, 2000);
     } catch (error) {
       console.error("Booking failed:", error);
-      toast.error("Booking failed", {
-        description:
-          error.response?.data?.message ||
-          "Please try again or contact support if the problem persists.",
-      });
+
+      // Handle specific error cases
+      if (error.message.includes("verify your email")) {
+        toast.error("Email Verification Required", {
+          description: error.message,
+          action: {
+            label: "Verify Now",
+            onClick: () =>
+              navigate("/verify-email", {
+                state: { email: user.email, source: "booking" },
+              }),
+          },
+        });
+      } else if (error.message.includes("session has expired")) {
+        toast.error("Session Expired", {
+          description: "Please log in again to continue.",
+          action: {
+            label: "Login",
+            onClick: () => navigate("/login"),
+          },
+        });
+      } else if (error.message.includes("Admin users cannot")) {
+        toast.error("Access Denied", {
+          description:
+            "Admin users cannot create bookings. Please use a customer account.",
+        });
+      } else {
+        toast.error("Booking failed", {
+          description:
+            error.message ||
+            error.response?.data?.message ||
+            "Please try again or contact support if the problem persists.",
+        });
+      }
     } finally {
       setBookingLoading(false);
     }

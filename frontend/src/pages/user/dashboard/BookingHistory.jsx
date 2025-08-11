@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../../../hooks/useAuth";
+// import { useAuth } from "../../../hooks/useAuth";
 import { bookingService } from "../../../services/bookingService";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const BookingHistory = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [bookings, setBookings] = useState([]);
@@ -241,7 +241,7 @@ const BookingHistory = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200/50">
-                    {filteredBookings.map((booking, index) => (
+                    {filteredBookings.map((booking) => (
                       <tr
                         key={booking.id}
                         className="hover:bg-red-50/30 transition-all duration-200 group"

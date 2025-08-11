@@ -66,23 +66,31 @@ const Register = () => {
 
     try {
       // Remove confirmPassword from the data sent to backend
-      const { confirmPassword, ...registrationData } = formData;
-      
+      const { confirmPassword: _, ...registrationData } = formData;
+
       const result = await register(registrationData);
       if (result.success) {
         toast.success("Registration successful!", {
-          description: "Your account has been created. Please log in to continue.",
+          description: result.data?.developmentMode
+            ? "Check the backend console for your verification code."
+            : "Please check your email for verification code.",
         });
-        navigate("/login", { 
-          state: { message: "Registration successful! Please log in." }
+        // Navigate to email verification page
+        navigate("/verify-email", {
+          state: {
+            email: formData.email,
+            justRegistered: true,
+            developmentMode: result.data?.developmentMode || false,
+          },
         });
       } else {
         setError(result.message);
         toast.error("Registration failed", {
-          description: result.message || "Please check your information and try again.",
+          description:
+            result.message || "Please check your information and try again.",
         });
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.");
       toast.error("Registration error", {
         description: "An unexpected error occurred. Please try again.",
@@ -118,7 +126,8 @@ const Register = () => {
                   Create Account
                 </h1>
                 <p className="text-sm md:text-base text-gray-500">
-                  Join BookUp MotMot to start managing your motorcycle wash bookings.
+                  Join BookUp MotMot to start managing your motorcycle wash
+                  bookings.
                 </p>
               </div>
 

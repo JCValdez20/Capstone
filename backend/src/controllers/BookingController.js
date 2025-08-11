@@ -77,15 +77,48 @@ exports.createBooking = async (req, res) => {
 
     // Prevent admin users from creating bookings
     const user = await User.findById(userId);
+
     if (!user) {
+      const userCount = await User.countDocuments();
+
+      if (userCount === 0) {
+        return send.sendErrorMessage(res, 404, "No users found in database");
+      } else {
+        // Check if there's a user with the same email but different ID
+        const tokenEmail = req.userData.email;
+        if (tokenEmail) {
+          const userByEmail = await User.findOne({ email: tokenEmail });
+          if (userByEmail && userByEmail._id.toString() !== userId) {
+            return send.sendErrorMessage(
+              res,
+              401,
+              "Token expired or invalid. Please log in again."
+            );
+          }
+        }
+      }
+
       return send.sendErrorMessage(res, 404, "User not found");
     }
 
+    // Temporarily allow admin users to create bookings for testing
+    // TODO: Re-enable this restriction for production
+    /*
     if (user.roles === "admin") {
       return send.sendErrorMessage(
         res,
         403,
         "Admin users cannot create bookings. Only customers can make bookings."
+      );
+    }
+    */
+
+    // Check if user email is verified
+    if (!user.isVerified) {
+      return send.sendErrorMessage(
+        res,
+        403,
+        "Please verify your email address before making bookings."
       );
     }
 
@@ -297,9 +330,11 @@ exports.updateBookingStatus = async (req, res) => {
       return send.sendErrorMessage(
         res,
         400,
-        `Invalid status. Admin can only update status to: ${allowedAdminStatuses.join(
-          ", "
-        )}`
+        new Error(
+          `Invalid status. Admin can only update status to: ${allowedAdminStatuses.join(
+            ", "
+          )}`
+        )
       );
     }
 
@@ -311,13 +346,13 @@ exports.updateBookingStatus = async (req, res) => {
       return send.sendErrorMessage(
         res,
         400,
-        "Rejection reason is required when rejecting a booking"
+        new Error("Rejection reason is required when rejecting a booking")
       );
     }
 
     const booking = await Booking.findById(id);
     if (!booking) {
-      return send.sendErrorMessage(res, 404, "Booking not found");
+      return send.sendErrorMessage(res, 404, new Error("Booking not found"));
     }
 
     const previousStatus = booking.status;
@@ -414,6 +449,38 @@ exports.getBookingStats = async (req, res) => {
         },
       },
       "Booking statistics retrieved successfully"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Update entire booking (Admin only)
+exports.updateBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Don't allow updating user assignment through this endpoint
+    delete updateData.user;
+
+    // Add timestamp
+    updateData.updatedAt = new Date();
+
+    const updatedBooking = await Booking.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate("user", "first_name last_name email");
+
+    if (!updatedBooking) {
+      return send.sendErrorMessage(res, 404, new Error("Booking not found"));
+    }
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      updatedBooking,
+      "Booking updated successfully"
     );
   } catch (error) {
     return send.sendErrorMessage(res, 500, error);

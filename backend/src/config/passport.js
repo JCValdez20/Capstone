@@ -31,6 +31,7 @@ passport.use(
               isGoogleUser: true,
               googleId: profile.id,
               profilePic,
+              isVerified: true, // Google users are automatically verified
             },
           },
           { upsert: true, new: true }

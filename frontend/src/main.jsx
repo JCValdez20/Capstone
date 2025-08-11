@@ -9,6 +9,7 @@ import "./index.css";
 import LandingPage from "./pages/landing-page/LandingPage.jsx";
 import Register from "./pages/auth/Register.jsx";
 import Login from "./pages/auth/Login.jsx";
+import EmailVerification from "./pages/auth/EmailVerification.jsx";
 import Dashboard from "./pages/user/dashboard/Dashboard.jsx";
 import ProtectedRoute from "./utils/ProtectedRoute.jsx";
 import GoogleCallbackHandler from "./utils/GoogleCallbackHandler.jsx";
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
         <Login />
       </AuthRedirect>
     ),
+  },
+  {
+    path: "/verify-email",
+    element: <EmailVerification />,
   },
   {
     path: "/auth/callback/google",
