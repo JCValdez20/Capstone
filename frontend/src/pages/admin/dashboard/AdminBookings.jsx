@@ -60,9 +60,7 @@ const AdminBookings = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching bookings...");
       const response = await adminService.getAllBookings();
-      console.log("Raw API Response:", response);
 
       // Ensure we always set an array
       let bookingsData = [];
@@ -70,7 +68,6 @@ const AdminBookings = () => {
       // The API returns { bookings: [...], pagination: {...} }
       if (response && response.bookings && Array.isArray(response.bookings)) {
         bookingsData = response.bookings;
-        console.log("Using response.bookings:", bookingsData);
       } else if (
         response &&
         response.data &&
@@ -78,28 +75,16 @@ const AdminBookings = () => {
         Array.isArray(response.data.bookings)
       ) {
         bookingsData = response.data.bookings;
-        console.log("Using response.data.bookings:", bookingsData);
       } else if (response && response.data && Array.isArray(response.data)) {
         bookingsData = response.data;
-        console.log("Using response.data:", bookingsData);
       } else if (response && Array.isArray(response)) {
         bookingsData = response;
-        console.log("Using response directly:", bookingsData);
-      } else {
-        console.warn("Unexpected response format:", response);
-        console.warn("Response type:", typeof response);
-        if (response && typeof response === "object") {
-          console.warn("Response keys:", Object.keys(response));
-        }
       }
 
-      console.log("Final processed bookings data:", bookingsData);
-      console.log("Bookings array length:", bookingsData.length);
       setBookings(bookingsData);
       setError("");
     } catch (err) {
       console.error("Error fetching bookings:", err);
-      console.error("Error details:", err.response?.data || err.message);
       setError("Failed to load bookings. Please try again.");
       setBookings([]); // Ensure we always have an array
     } finally {

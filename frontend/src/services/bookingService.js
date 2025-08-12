@@ -107,8 +107,6 @@ class BookingService {
 
   // Error handling
   handleError(error) {
-    console.log("BookingService Error:", error.response?.data || error.message);
-
     if (error.response?.status === 403) {
       const message = error.response.data?.message || "Access forbidden";
       if (message.includes("verify your email")) {

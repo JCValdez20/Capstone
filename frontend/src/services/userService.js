@@ -1,20 +1,41 @@
 import axios from "./axios";
 
+// Global flag to prevent concurrent profile fetches
+let profileFetchPromise = null;
+
 export const userService = {
   // Get current user profile
   getCurrentUser: async () => {
     try {
-      const response = await axios.get("/user/profile");
-      return {
-        success: true,
-        data: response.data.data, // Extract data from wrapper
-        message: response.data.message,
-      };
+      // If there's already a request in progress, return that promise
+      if (profileFetchPromise) {
+        console.log("📡 PROFILE API - Using existing request");
+        return await profileFetchPromise;
+      }
+
+      console.log("📡 PROFILE API - Starting new request");
+      
+      // Create new request promise and store it
+      profileFetchPromise = axios.get("/user/profile").then(response => {
+        console.log("✅ PROFILE API - Request completed");
+        profileFetchPromise = null; // Clear the promise after completion
+        return {
+          success: true,
+          data: response.data.data, // Extract data from wrapper
+          message: response.data.message,
+        };
+      }).catch(error => {
+        console.error("❌ PROFILE API - Request failed:", error);
+        profileFetchPromise = null; // Clear the promise after failure
+        throw new Error(
+          error.response?.data?.message || "Failed to get user profile"
+        );
+      });
+
+      return await profileFetchPromise;
     } catch (error) {
       console.error("getCurrentUser error:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to get user profile"
-      );
+      throw error;
     }
   },
 
@@ -38,9 +59,7 @@ export const userService = {
   // Update profile picture
   updateProfilePicture: async (profilePic) => {
     try {
-      console.log("Updating profile picture, length:", profilePic.length);
       const response = await axios.put("/user/profile/picture", { profilePic });
-      console.log("Raw response:", response.data);
       return {
         success: true,
         data: response.data.data, // Extract data from wrapper

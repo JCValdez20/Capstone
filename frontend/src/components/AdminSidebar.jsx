@@ -44,14 +44,15 @@ const AdminSidebar = ({ children }) => {
 
   const handleLogout = () => {
     adminService.logout();
-    window.location.href = '/admin/login';
+    window.location.href = "/admin/login";
   };
 
   const firstName = currentAdmin?.first_name || "Admin";
   const lastName = currentAdmin?.last_name || "User";
   const fullName = `${firstName} ${lastName}`.trim() || "Admin";
   const userEmail = currentAdmin?.email || "admin@washup.com";
-  const userInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "AU";
+  const userInitials =
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "AU";
 
   const navItems = [
     {
@@ -84,13 +85,13 @@ const AdminSidebar = ({ children }) => {
           {/* HEADER */}
           <SidebarHeader className="flex flex-col items-center p-4 border-b border-slate-100">
             <SidebarTrigger className="mb-3 group-data-[collapsible=icon]:rotate-180 transition-transform duration-200" />
-            
+
             <div className="flex flex-col items-center gap-2">
               {/* Logo - shows when expanded, Shield icon when collapsed */}
               <div className="group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:bg-red-500 group-data-[collapsible=icon]:rounded-lg flex items-center justify-center transition-all duration-200">
-                <img 
-                  src="/src/assets/WashUpLogo.png" 
-                  alt="WashUp Logo" 
+                <img
+                  src="/src/assets/WashUpLogo.png"
+                  alt="WashUp Logo"
                   className="w-20 h-20 object-contain group-data-[collapsible=icon]:hidden"
                 />
                 <Shield className="w-4 h-4 text-white hidden group-data-[collapsible=icon]:block" />
@@ -121,17 +122,21 @@ const AdminSidebar = ({ children }) => {
                                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                             }`}
                           >
-                            <item.icon className={`w-5 h-5 shrink-0 ${
-                              location.pathname === item.path ? "text-red-600" : ""
-                            }`} />
+                            <item.icon
+                              className={`w-5 h-5 shrink-0 ${
+                                location.pathname === item.path
+                                  ? "text-red-600"
+                                  : ""
+                              }`}
+                            />
                             <span className="group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 overflow-hidden transition-all duration-200">
                               {item.label}
                             </span>
                           </SidebarMenuButton>
                         </Link>
                       </TooltipTrigger>
-                      <TooltipContent 
-                        side="right" 
+                      <TooltipContent
+                        side="right"
                         className="group-data-[state=expanded]:hidden"
                       >
                         {item.tooltip}
@@ -184,10 +189,6 @@ const AdminSidebar = ({ children }) => {
                   <User className="w-4 h-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
-                  <Settings className="w-4 h-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   className="gap-2 text-red-600 hover:bg-red-50 cursor-pointer"
                   onClick={handleLogout}
@@ -201,9 +202,7 @@ const AdminSidebar = ({ children }) => {
         </Sidebar>
 
         {/* MAIN */}
-        <main className="flex-1 overflow-auto bg-slate-50">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
       </div>
     </SidebarProvider>
   );

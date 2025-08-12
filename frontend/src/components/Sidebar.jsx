@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Sidebar,
   SidebarProvider,
@@ -37,17 +37,25 @@ import {
 import { Link, useLocation } from "react-router-dom";
 
 const AppSidebar = ({ children }) => {
-  const { logout, user } = useAuth();
+  const { logout, user, forceUpdateTrigger } = useAuth();
   const location = useLocation();
 
-  const firstName = user?.first_name || "Sandra";
-  const lastName = user?.last_name || "Marx";
+  // Simple, direct user data - no complex memoization
+  const currentUser = user || {};
+  const firstName = currentUser.first_name || "User";
+  const lastName = currentUser.last_name || "";
   const fullName = `${firstName} ${lastName}`.trim() || "User";
-  const userEmail = user?.email || "sandra@gmail.com";
-  const userInitials =
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "SM";
+  const email = currentUser.email || "user@example.com";
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
+  const profilePic = currentUser.profilePic || "";
 
-  const navItems = [
+  console.log("🎬 SIDEBAR RENDER - User:", user?.first_name, user?.last_name);
+  console.log("🎬 SIDEBAR RENDER - Trigger:", forceUpdateTrigger);
+  console.log("📸 SIDEBAR RENDER - Profile Pic:", profilePic ? "Present" : "Missing");
+  console.log("👤 SIDEBAR DISPLAY:", { firstName, lastName, fullName, profilePic });
+
+  // Memoized navigation items
+  const navItems = useMemo(() => [
     {
       icon: Home,
       label: "Dashboard",
@@ -60,13 +68,10 @@ const AppSidebar = ({ children }) => {
       path: "/booking-history",
       tooltip: "Booking History",
     },
-    {
-      icon: User,
-      label: "Profile",
-      path: "/profile",
-      tooltip: "Profile Settings",
-    },
-  ];
+  ], []);
+
+  // Simple key for Avatar - changes when user data changes
+  const avatarKey = `avatar-${firstName}-${lastName}-${profilePic?.slice(-10)}-${forceUpdateTrigger}`;
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -145,22 +150,14 @@ const AppSidebar = ({ children }) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors duration-200 group-data-[collapsible=icon]:justify-center">
-                  <Avatar className="w-8 h-8 shrink-0">
+                  <Avatar key={avatarKey} className="w-8 h-8 shrink-0">
                     <AvatarImage
-                      src={user?.profilePic}
+                      src={profilePic}
                       alt={fullName}
-                      onError={() =>
-                        console.log(
-                          "Sidebar avatar failed to load:",
-                          user?.profilePic?.substring(0, 50)
-                        )
-                      }
-                      onLoad={() =>
-                        console.log("Sidebar avatar loaded successfully")
-                      }
+                      className="object-cover"
                     />
                     <AvatarFallback className="bg-slate-200 text-slate-700 text-sm font-medium">
-                      {userInitials}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
 
@@ -169,7 +166,7 @@ const AppSidebar = ({ children }) => {
                       {fullName}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      {userEmail}
+                      {email}
                     </p>
                   </div>
 
@@ -186,13 +183,15 @@ const AppSidebar = ({ children }) => {
                   <p className="text-sm font-medium text-slate-900">
                     {fullName}
                   </p>
-                  <p className="text-xs text-slate-500">{userEmail}</p>
+                  <p className="text-xs text-slate-500">{email}</p>
                 </div>
                 <DropdownMenuSeparator className="bg-slate-100" />
-                <DropdownMenuItem className="gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
-                  <User className="w-4 h-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
+                <Link to="/profile">
+                  <DropdownMenuItem className="gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
+                    <User className="w-4 h-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem
                   className="gap-2 text-red-600 hover:bg-red-50 cursor-pointer"
                   onClick={logout}

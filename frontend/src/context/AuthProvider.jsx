@@ -12,6 +12,7 @@ const initialAuthState = {
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(initialAuthState);
+  const [forceUpdateTrigger, setForceUpdateTrigger] = useState(0);
 
   const verifyToken = async () => {
     try {
@@ -88,6 +89,8 @@ export function AuthProvider({ children }) {
     const initAuth = async () => {
       const { valid, user } = await verifyToken();
       if (valid && user) {
+        console.log("🎬 INIT AUTH - User from storage:", user);
+        
         setAuth({
           user,
           isLoggedIn: true,
@@ -95,6 +98,11 @@ export function AuthProvider({ children }) {
           isLoading: false,
           error: null,
         });
+        
+        // Trigger initial render
+        setForceUpdateTrigger(prev => prev + 1);
+        
+        console.log("✅ INIT AUTH COMPLETE");
       } else {
         clearAuth();
       }
@@ -111,10 +119,12 @@ export function AuthProvider({ children }) {
       if (isGoogleAuth) {
         // Google auth already provides standardized data
         data = { token: email, user: password };
+        console.log("🚀 GOOGLE LOGIN - User data:", data.user);
       } else {
         const response = await axios.post("/user/login", { email, password });
         data = response.data;
         if (!data.token || !data.user) throw new Error("Invalid response");
+        console.log("🚀 LOCAL LOGIN - User data:", data.user);
       }
 
       // Standardized user object handling
@@ -123,19 +133,31 @@ export function AuthProvider({ children }) {
         name:
           data.user.name || `${data.user.first_name} ${data.user.last_name}`,
         role: data.user.role || data.user.roles, // Handle both cases
+        // Ensure profile picture is included
+        profilePic: data.user.profilePic || "",
       };
+
+      console.log("🎯 SETTING AUTH USER:", user);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      setAuth({
+      const newAuthState = {
         user,
         isLoggedIn: true,
         role: user.role,
         isLoading: false,
         error: null,
         isGoogleUser: isGoogleAuth,
-      });
+      };
+
+      setAuth(newAuthState);
+      
+      // Also trigger the force update to ensure UI updates
+      setForceUpdateTrigger(prev => prev + 1);
+
+      console.log("✅ LOGIN COMPLETE - Auth state:", newAuthState);
+      console.log("📸 Profile pic in auth state:", user.profilePic ? "Present" : "Missing");
 
       return {
         success: true,
@@ -185,24 +207,35 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // SIMPLE, DIRECT UPDATE FUNCTION
   const updateUserData = (updatedUser) => {
     try {
-      console.log("AuthProvider - Updating user data:", {
-        currentUser: auth.user?.email,
-        newProfilePic: updatedUser?.profilePic?.substring(0, 50) || "none",
-        profilePicLength: updatedUser?.profilePic?.length || 0,
-      });
-
-      // Update localStorage
+      console.log("🔄 UPDATING USER:", updatedUser);
+      
+      // Step 1: Update localStorage
       localStorage.setItem("user", JSON.stringify(updatedUser));
-
-      // Update auth state
-      setAuth((prev) => ({
-        ...prev,
-        user: updatedUser,
-      }));
+      
+      // Step 2: FORCE React state update with completely new object
+      setAuth(prevAuth => {
+        const newAuth = {
+          user: { ...updatedUser }, // Create new object reference
+          isLoggedIn: prevAuth.isLoggedIn,
+          role: updatedUser.role || updatedUser.roles,
+          isLoading: prevAuth.isLoading,
+          error: prevAuth.error,
+          isGoogleUser: prevAuth.isGoogleUser,
+        };
+        console.log("🎯 NEW AUTH STATE:", newAuth);
+        return newAuth;
+      });
+      
+      // Step 3: Force re-render trigger
+      setForceUpdateTrigger(prev => prev + 1);
+      
+      console.log("✅ USER UPDATE COMPLETE");
+      
     } catch (error) {
-      console.error("Error updating user data:", error);
+      console.error("❌ Error updating user data:", error);
     }
   };
 
@@ -212,6 +245,7 @@ export function AuthProvider({ children }) {
     register, // keep your existing register function
     logout, // now handles both types
     updateUserData, // Add the new function
+    forceUpdateTrigger, // Add this to trigger re-renders
     isAdmin: auth.role === "admin",
     isCustomer: auth.role === "customer",
   };
