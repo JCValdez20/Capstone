@@ -95,7 +95,7 @@ const Profile = () => {
     };
 
     loadUserProfile();
-  }, [user?.email]); // Only depend on email which doesn't change frequently
+  }, [user]); // Include the full user dependency
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -462,26 +462,20 @@ const Profile = () => {
                       type="email"
                       value={profileData.email || ""}
                       onChange={handleInputChange}
-                      disabled={
-                        !isEditing || isLoading || profileData.isGoogleUser
-                      }
+                      disabled={true} // Always disabled for security
                       className="h-12 transition-all duration-200 border-2 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:bg-gray-50 disabled:text-gray-500"
                       placeholder="Enter your email address"
                     />
-                    {profileData.isGoogleUser && (
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <Shield className="h-4 w-4 text-red-500" />
-                      </div>
-                    )}
-                  </div>
-                  {profileData.isGoogleUser && (
-                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="w-3 h-3 rounded-full bg-red-500" />
-                      <p className="text-sm text-red-700 font-medium">
-                        Email cannot be changed for Google accounts
-                      </p>
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Shield className="h-4 w-4 text-gray-500" />
                     </div>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="w-3 h-3 rounded-full bg-gray-500" />
+                    <p className="text-sm text-gray-700 font-medium">
+                      Email address cannot be changed for security reasons
+                    </p>
+                  </div>
                 </div>
 
                 {/* Action Buttons */}

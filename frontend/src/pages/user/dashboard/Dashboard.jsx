@@ -3,7 +3,7 @@ import Bookings from "./Bookings";
 
 const Dashboard = () => {
   return (
-    <div className="h-full">
+    <div className="min-h-screen bg-white p-0">
       <Bookings />
     </div>
   );

@@ -6,38 +6,34 @@ let profileFetchPromise = null;
 export const userService = {
   // Get current user profile
   getCurrentUser: async () => {
-    try {
-      // If there's already a request in progress, return that promise
-      if (profileFetchPromise) {
-        return await profileFetchPromise;
-      }
-
-      // Create new request promise and store it
-      profileFetchPromise = axios
-        .get("/user/profile", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        })
-        .then((response) => {
-          profileFetchPromise = null; // Clear the promise after completion
-          return {
-            success: true,
-            data: response.data.data, // Extract data from wrapper
-            message: response.data.message,
-          };
-        })
-        .catch((error) => {
-          profileFetchPromise = null; // Clear the promise after failure
-          throw new Error(
-            error.response?.data?.message || "Failed to get user profile"
-          );
-        });
-
+    // If there's already a request in progress, return that promise
+    if (profileFetchPromise) {
       return await profileFetchPromise;
-    } catch (error) {
-      throw error;
     }
+
+    // Create new request promise and store it
+    profileFetchPromise = axios
+      .get("/user/profile", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+      .then((response) => {
+        profileFetchPromise = null; // Clear the promise after completion
+        return {
+          success: true,
+          data: response.data.data, // Extract data from wrapper
+          message: response.data.message,
+        };
+      })
+      .catch((error) => {
+        profileFetchPromise = null; // Clear the promise after failure
+        throw new Error(
+          error.response?.data?.message || "Failed to get user profile"
+        );
+      });
+
+    return await profileFetchPromise;
   },
 
   // Update user profile
@@ -45,17 +41,17 @@ export const userService = {
     try {
       // Force use of user token specifically for user profile updates
       const userToken = localStorage.getItem("token");
-      
+
       if (!userToken) {
         throw new Error("No user authentication token found");
       }
-      
+
       const response = await axios.put("/user/profile", profileData, {
         headers: {
           Authorization: `Bearer ${userToken}`,
         },
       });
-      
+
       return {
         success: true,
         data: response.data.data, // Extract data from wrapper
@@ -73,11 +69,15 @@ export const userService = {
     try {
       // Force use of user token specifically for user profile picture updates
       const userToken = localStorage.getItem("token");
-      const response = await axios.put("/user/profile/picture", { profilePic }, {
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
-      });
+      const response = await axios.put(
+        "/user/profile/picture",
+        { profilePic },
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
       return {
         success: true,
         data: response.data.data, // Extract data from wrapper

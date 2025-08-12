@@ -204,7 +204,7 @@ const AppSidebar = ({ children }) => {
         </Sidebar>
 
         {/* MAIN */}
-        <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
+        <main className="flex-1 overflow-auto bg-white">{children}</main>
       </div>
     </SidebarProvider>
   );
