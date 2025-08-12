@@ -9,32 +9,33 @@ export const userService = {
     try {
       // If there's already a request in progress, return that promise
       if (profileFetchPromise) {
-        console.log("📡 PROFILE API - Using existing request");
         return await profileFetchPromise;
       }
 
-      console.log("📡 PROFILE API - Starting new request");
-      
       // Create new request promise and store it
-      profileFetchPromise = axios.get("/user/profile").then(response => {
-        console.log("✅ PROFILE API - Request completed");
-        profileFetchPromise = null; // Clear the promise after completion
-        return {
-          success: true,
-          data: response.data.data, // Extract data from wrapper
-          message: response.data.message,
-        };
-      }).catch(error => {
-        console.error("❌ PROFILE API - Request failed:", error);
-        profileFetchPromise = null; // Clear the promise after failure
-        throw new Error(
-          error.response?.data?.message || "Failed to get user profile"
-        );
-      });
+      profileFetchPromise = axios
+        .get("/user/profile", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        })
+        .then((response) => {
+          profileFetchPromise = null; // Clear the promise after completion
+          return {
+            success: true,
+            data: response.data.data, // Extract data from wrapper
+            message: response.data.message,
+          };
+        })
+        .catch((error) => {
+          profileFetchPromise = null; // Clear the promise after failure
+          throw new Error(
+            error.response?.data?.message || "Failed to get user profile"
+          );
+        });
 
       return await profileFetchPromise;
     } catch (error) {
-      console.error("getCurrentUser error:", error);
       throw error;
     }
   },
@@ -42,14 +43,25 @@ export const userService = {
   // Update user profile
   updateProfile: async (profileData) => {
     try {
-      const response = await axios.put("/user/profile", profileData);
+      // Force use of user token specifically for user profile updates
+      const userToken = localStorage.getItem("token");
+      
+      if (!userToken) {
+        throw new Error("No user authentication token found");
+      }
+      
+      const response = await axios.put("/user/profile", profileData, {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
+      
       return {
         success: true,
         data: response.data.data, // Extract data from wrapper
         message: response.data.message,
       };
     } catch (error) {
-      console.error("updateProfile error:", error);
       throw new Error(
         error.response?.data?.message || "Failed to update profile"
       );
@@ -59,14 +71,19 @@ export const userService = {
   // Update profile picture
   updateProfilePicture: async (profilePic) => {
     try {
-      const response = await axios.put("/user/profile/picture", { profilePic });
+      // Force use of user token specifically for user profile picture updates
+      const userToken = localStorage.getItem("token");
+      const response = await axios.put("/user/profile/picture", { profilePic }, {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
       return {
         success: true,
         data: response.data.data, // Extract data from wrapper
         message: response.data.message,
       };
     } catch (error) {
-      console.error("updateProfilePicture error:", error);
       throw new Error(
         error.response?.data?.message || "Failed to update profile picture"
       );

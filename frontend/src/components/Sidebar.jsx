@@ -46,32 +46,33 @@ const AppSidebar = ({ children }) => {
   const lastName = currentUser.last_name || "";
   const fullName = `${firstName} ${lastName}`.trim() || "User";
   const email = currentUser.email || "user@example.com";
-  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
+  const initials =
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
   const profilePic = currentUser.profilePic || "";
 
-  console.log("🎬 SIDEBAR RENDER - User:", user?.first_name, user?.last_name);
-  console.log("🎬 SIDEBAR RENDER - Trigger:", forceUpdateTrigger);
-  console.log("📸 SIDEBAR RENDER - Profile Pic:", profilePic ? "Present" : "Missing");
-  console.log("👤 SIDEBAR DISPLAY:", { firstName, lastName, fullName, profilePic });
-
   // Memoized navigation items
-  const navItems = useMemo(() => [
-    {
-      icon: Home,
-      label: "Dashboard",
-      path: "/dashboard",
-      tooltip: "Dashboard",
-    },
-    {
-      icon: CalendarDays,
-      label: "Booking History",
-      path: "/booking-history",
-      tooltip: "Booking History",
-    },
-  ], []);
+  const navItems = useMemo(
+    () => [
+      {
+        icon: Home,
+        label: "Dashboard",
+        path: "/dashboard",
+        tooltip: "Dashboard",
+      },
+      {
+        icon: CalendarDays,
+        label: "Booking History",
+        path: "/booking-history",
+        tooltip: "Booking History",
+      },
+    ],
+    []
+  );
 
   // Simple key for Avatar - changes when user data changes
-  const avatarKey = `avatar-${firstName}-${lastName}-${profilePic?.slice(-10)}-${forceUpdateTrigger}`;
+  const avatarKey = `avatar-${firstName}-${lastName}-${profilePic?.slice(
+    -10
+  )}-${forceUpdateTrigger}`;
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -165,9 +166,7 @@ const AppSidebar = ({ children }) => {
                     <p className="text-sm font-medium text-slate-900 truncate">
                       {fullName}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">
-                      {email}
-                    </p>
+                    <p className="text-xs text-slate-500 truncate">{email}</p>
                   </div>
 
                   <ChevronDown className="w-4 h-4 text-slate-400 group-data-[collapsible=icon]:hidden" />

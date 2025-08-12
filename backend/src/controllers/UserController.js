@@ -319,6 +319,15 @@ exports.updateProfile = async (req, res) => {
   try {
     const userId = req.userData.id;
     const updateData = req.body;
+    
+    // Safety check: Ensure we're not updating admin profiles through user routes
+    if (req.userData.roles === "admin") {
+      return send.sendErrorMessage(
+        res,
+        403,
+        new Error("Admin profiles must be updated through admin routes")
+      );
+    }
 
     // Remove sensitive fields that shouldn't be updated via this endpoint
     delete updateData.password;
@@ -349,6 +358,15 @@ exports.updateProfilePicture = async (req, res) => {
   try {
     const userId = req.userData.id;
     const { profilePic } = req.body;
+    
+    // Safety check: Ensure we're not updating admin profiles through user routes
+    if (req.userData.roles === "admin") {
+      return send.sendErrorMessage(
+        res,
+        403,
+        new Error("Admin profiles must be updated through admin routes")
+      );
+    }
 
     if (!profilePic) {
       return send.sendErrorMessage(

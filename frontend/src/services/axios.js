@@ -10,13 +10,16 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
-  // Check for admin token first, then regular user token
-  const adminToken = localStorage.getItem("adminToken");
-  const userToken = localStorage.getItem("token");
+  // Only add Authorization header if one is not explicitly provided
+  if (!config.headers.Authorization) {
+    // Check for admin token first, then regular user token
+    const adminToken = localStorage.getItem("adminToken");
+    const userToken = localStorage.getItem("token");
 
-  const token = adminToken || userToken;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    const token = adminToken || userToken;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

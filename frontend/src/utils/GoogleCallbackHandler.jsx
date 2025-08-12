@@ -21,7 +21,11 @@ const GoogleCallbackHandler = () => {
       const userParam = searchParams.get("user");
       const error = searchParams.get("error");
 
-      console.log("🎬 GOOGLE CALLBACK HANDLER - Starting...", { token: !!token, userParam: !!userParam, error });
+      console.log("🎬 GOOGLE CALLBACK HANDLER - Starting...", {
+        token: !!token,
+        userParam: !!userParam,
+        error,
+      });
 
       if (error) {
         navigate(`/login?error=${encodeURIComponent(error)}`);
@@ -32,29 +36,29 @@ const GoogleCallbackHandler = () => {
         try {
           hasProcessed.current = true; // Mark as processed FIRST
           console.log("🔐 GOOGLE CALLBACK - Marked as processed");
-          
+
           const user = JSON.parse(decodeURIComponent(userParam));
 
           console.log("🚀 GOOGLE AUTH CALLBACK - User:", user);
 
           // First, do initial login to set auth state
           const loginResult = await login(token, user, true);
-          
+
           if (loginResult.success && user.hasProfilePic) {
             try {
               console.log("🖼️ FETCHING PROFILE PICTURE...");
               const response = await userService.getCurrentUser();
               const userData = response.data;
-              
+
               if (userData.profilePic) {
                 console.log("🎯 UPDATING WITH PROFILE PIC");
-                
+
                 // Update user with profile picture
                 const updatedUser = {
                   ...user,
-                  profilePic: userData.profilePic
+                  profilePic: userData.profilePic,
                 };
-                
+
                 updateUserData(updatedUser);
               }
             } catch (profileError) {

@@ -56,8 +56,6 @@ const Profile = () => {
         setIsLoading(true);
         hasLoadedProfile.current = true; // Mark as loaded
 
-        console.log("📋 LOADING PROFILE DATA...");
-
         // First, initialize with data from context if available
         setProfileData({
           first_name: user.first_name || "",
@@ -71,15 +69,11 @@ const Profile = () => {
 
         // ONLY fetch from API if we don't have essential data
         if (!user.first_name || !user.last_name || !user.email) {
-          console.log("📋 FETCHING MISSING PROFILE DATA FROM API...");
           const response = await userService.getCurrentUser();
           if (response.success) {
-            console.log("📋 PROFILE DATA LOADED FROM API");
             setProfileData(response.data);
             setImagePreview(response.data.profilePic || "");
           }
-        } else {
-          console.log("📋 USING PROFILE DATA FROM CONTEXT (SKIP API CALL)");
         }
       } catch (error) {
         console.error("Error loading profile:", error);
@@ -129,7 +123,7 @@ const Profile = () => {
 
       if (response.success) {
         console.log("✅ PROFILE PIC UPDATE SUCCESS:", response.data);
-        
+
         const updatedUserData = response.data;
 
         // Update local state
@@ -151,8 +145,6 @@ const Profile = () => {
           role: updatedUserData.role || user.role,
           roles: updatedUserData.roles || user.roles,
         };
-
-        console.log("🎯 CALLING updateUserData for profilePic with:", newUser);
 
         // Update context immediately
         updateUserData(newUser);
@@ -179,18 +171,14 @@ const Profile = () => {
         last_name: profileData.last_name,
       };
 
-      console.log("🚀 SENDING UPDATE:", updateData);
-
       const response = await userService.updateProfile(updateData);
 
       if (response.success) {
-        console.log("✅ UPDATE SUCCESS:", response.data);
-        
         const updatedUserData = response.data;
-        
+
         // Update local profile state
         setProfileData(updatedUserData);
-        
+
         // Create COMPLETELY NEW user object for context
         const newUser = {
           ...user, // Start with existing user data
@@ -203,15 +191,12 @@ const Profile = () => {
           role: updatedUserData.role || updatedUserData.roles || user.role,
           roles: updatedUserData.roles || updatedUserData.role || user.roles,
         };
-        
-        console.log("🎯 CALLING updateUserData with:", newUser);
-        
+
         // Update context - this should trigger Sidebar re-render
         updateUserData(newUser);
-        
+
         setIsEditing(false);
         toast.success("Profile updated successfully!");
-        
       } else {
         throw new Error(response.message || "Failed to update profile");
       }

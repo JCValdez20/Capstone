@@ -89,8 +89,6 @@ export function AuthProvider({ children }) {
     const initAuth = async () => {
       const { valid, user } = await verifyToken();
       if (valid && user) {
-        console.log("🎬 INIT AUTH - User from storage:", user);
-        
         setAuth({
           user,
           isLoggedIn: true,
@@ -98,11 +96,9 @@ export function AuthProvider({ children }) {
           isLoading: false,
           error: null,
         });
-        
+
         // Trigger initial render
-        setForceUpdateTrigger(prev => prev + 1);
-        
-        console.log("✅ INIT AUTH COMPLETE");
+        setForceUpdateTrigger((prev) => prev + 1);
       } else {
         clearAuth();
       }
@@ -119,12 +115,10 @@ export function AuthProvider({ children }) {
       if (isGoogleAuth) {
         // Google auth already provides standardized data
         data = { token: email, user: password };
-        console.log("🚀 GOOGLE LOGIN - User data:", data.user);
       } else {
         const response = await axios.post("/user/login", { email, password });
         data = response.data;
         if (!data.token || !data.user) throw new Error("Invalid response");
-        console.log("🚀 LOCAL LOGIN - User data:", data.user);
       }
 
       // Standardized user object handling
@@ -136,8 +130,6 @@ export function AuthProvider({ children }) {
         // Ensure profile picture is included
         profilePic: data.user.profilePic || "",
       };
-
-      console.log("🎯 SETTING AUTH USER:", user);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(user));
@@ -152,12 +144,9 @@ export function AuthProvider({ children }) {
       };
 
       setAuth(newAuthState);
-      
-      // Also trigger the force update to ensure UI updates
-      setForceUpdateTrigger(prev => prev + 1);
 
-      console.log("✅ LOGIN COMPLETE - Auth state:", newAuthState);
-      console.log("📸 Profile pic in auth state:", user.profilePic ? "Present" : "Missing");
+      // Also trigger the force update to ensure UI updates
+      setForceUpdateTrigger((prev) => prev + 1);
 
       return {
         success: true,
@@ -210,13 +199,11 @@ export function AuthProvider({ children }) {
   // SIMPLE, DIRECT UPDATE FUNCTION
   const updateUserData = (updatedUser) => {
     try {
-      console.log("🔄 UPDATING USER:", updatedUser);
-      
       // Step 1: Update localStorage
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      
+
       // Step 2: FORCE React state update with completely new object
-      setAuth(prevAuth => {
+      setAuth((prevAuth) => {
         const newAuth = {
           user: { ...updatedUser }, // Create new object reference
           isLoggedIn: prevAuth.isLoggedIn,
@@ -225,15 +212,11 @@ export function AuthProvider({ children }) {
           error: prevAuth.error,
           isGoogleUser: prevAuth.isGoogleUser,
         };
-        console.log("🎯 NEW AUTH STATE:", newAuth);
         return newAuth;
       });
-      
+
       // Step 3: Force re-render trigger
-      setForceUpdateTrigger(prev => prev + 1);
-      
-      console.log("✅ USER UPDATE COMPLETE");
-      
+      setForceUpdateTrigger((prev) => prev + 1);
     } catch (error) {
       console.error("❌ Error updating user data:", error);
     }
