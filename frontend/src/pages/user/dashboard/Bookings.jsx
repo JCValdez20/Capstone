@@ -158,7 +158,9 @@ const Bookings = () => {
     } catch (error) {
       console.error("Error fetching slots:", error);
       setAvailableSlots([]);
-      setError("Failed to load time slots. Please try refreshing or selecting a different date.");
+      setError(
+        "Failed to load time slots. Please try refreshing or selecting a different date."
+      );
       toast.error("Failed to load time slots", {
         description: "Please try refreshing or selecting a different date.",
       });
@@ -170,6 +172,31 @@ const Bookings = () => {
   const handleBooking = async () => {
     if (!selectedDate || !selectedTimeSlot || !selectedService) return;
 
+    // Check if user is authenticated before attempting booking
+    const userToken = localStorage.getItem("token");
+    if (!userToken) {
+      toast.error("Authentication Required", {
+        description: "Please log in again to continue.",
+        action: {
+          label: "Login",
+          onClick: () => navigate("/login"),
+        },
+      });
+      return;
+    }
+
+    // Verify user object is available
+    if (!user) {
+      toast.error("User Session Error", {
+        description: "Please log in again to continue.",
+        action: {
+          label: "Login",
+          onClick: () => navigate("/login"),
+        },
+      });
+      return;
+    }
+
     setBookingLoading(true);
     try {
       const bookingData = {
@@ -180,6 +207,7 @@ const Bookings = () => {
         notes: notes.trim(),
       };
 
+      console.log("Creating booking with data:", bookingData);
       await bookingService.createBooking(bookingData);
       setBookingSuccess(true);
 
@@ -220,7 +248,13 @@ const Bookings = () => {
               }),
           },
         });
-      } else if (error.message.includes("session has expired")) {
+      } else if (
+        error.message.includes("session has expired") ||
+        error.message.includes("Authentication failed")
+      ) {
+        // Clear potentially invalid tokens
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         toast.error("Session Expired", {
           description: "Please log in again to continue.",
           action: {
@@ -283,611 +317,519 @@ const Bookings = () => {
   const calendarDays = generateCalendarDays();
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-6">
-        <div className="w-full">
-          <h1 className="text-3xl font-light text-gray-900 mb-2">
-            Welcome back,{" "}
-            <span className="text-red-600 font-medium">{fullName}</span>
+    <div className="flex h-screen w-full bg-white">
+      {/* Compact Header */}
+      <div className="w-full">
+        <div className="bg-white px-4 py-4 border-b border-gray-200">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Book Your Service, <span className="text-red-600">{fullName}</span>
           </h1>
-          <p className="text-gray-600">
-            Choose your perfect motorcycle care service
+          <p className="text-gray-600 text-sm mt-1">
+            Select service, date, and time to complete your booking
           </p>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="w-full px-4 md:px-8 py-6 h-[calc(100vh-140px)]">
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-6 rounded-xl border-red-200 bg-red-50">
-            <X className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="grid grid-cols-1 xl:grid-cols-3 lg:grid-cols-2 gap-12 h-full max-w-none">
-          {/* Services Section - Featured prominently */}
-          <div className="xl:col-span-1 lg:col-span-1 col-span-1">
-            <div className="bg-gray-50 rounded-2xl shadow-lg p-6 border border-gray-200 h-full flex flex-col">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r from-red-500 to-red-600 rounded-2xl mb-3">
-                  <Sparkles className="w-7 h-7 text-white" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  Our Premium Services
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Premium motorcycle care tailored to your needs
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 flex-1 overflow-y-auto scrollbar-hide">
-                {services.map((service, index) => (
-                  <div
-                    key={service.id}
-                    onClick={() => handleServiceSelect(service)}
-                    className={`
-                      group relative overflow-hidden rounded-lg border-2 cursor-pointer transition-all duration-300
-                      ${
-                        selectedService?.id === service.id
-                          ? "border-red-500 bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg scale-[1.02] transform"
-                          : "border-gray-200 bg-white hover:border-red-200 hover:shadow-md hover:scale-[1.01] transform"
-                      }
-                    `}
-                  >
-                    <div className="p-3 relative z-10">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 pr-2">
-                          <h3
-                            className={`font-semibold text-sm leading-tight ${
-                              selectedService?.id === service.id
-                                ? "text-white"
-                                : "text-gray-900"
-                            }`}
-                          >
-                            {service.name}
-                          </h3>
-                          <p
-                            className={`text-xs ${
-                              selectedService?.id === service.id
-                                ? "text-red-100"
-                                : "text-gray-600"
-                            }`}
-                          >
-                            {service.description}
-                          </p>
-                        </div>
-                        <div
-                          className={`
-                          w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0
-                          ${
-                            selectedService?.id === service.id
-                              ? "bg-white text-red-500"
-                              : "bg-gray-100 text-gray-400 group-hover:bg-red-50 group-hover:text-red-500"
-                          }
-                        `}
-                        >
-                          {selectedService?.id === service.id ? (
-                            <Check className="w-4 h-4" />
-                          ) : (
-                            <Star className="w-4 h-4" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Animated background effect */}
-                    {selectedService?.id === service.id && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-400 to-red-700 opacity-20 animate-pulse"></div>
-                    )}
-
-                    {/* Number indicator */}
-                    <div
-                      className={`
-                      absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
-                      ${
-                        selectedService?.id === service.id
-                          ? "bg-white text-red-500"
-                          : "bg-red-50 text-red-500"
-                      }
-                    `}
-                    >
-                      {index + 1}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="px-4 pt-4">
+            <Alert variant="destructive" className="border-red-200 bg-red-50">
+              <X className="h-4 w-4" />
+              <AlertDescription className="text-red-800">
+                {error}
+              </AlertDescription>
+            </Alert>
           </div>
+        )}
 
-          {/* Date & Time Selection */}
-          <div className="xl:col-span-1 lg:col-span-1 col-span-1 h-full">
-            <div className="space-y-4 h-full flex flex-col">
-              {/* Calendar */}
-              <div className="bg-gray-50 rounded-2xl shadow-lg p-6 border border-gray-200 flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                  </div>
-                  Select Date
-                </h2>
-
-                {/* Month Navigation */}
-                <div className="flex items-center justify-between mb-6">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigateMonth(-1)}
-                    className="p-3 hover:bg-gray-200 rounded-lg"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </Button>
-                  <h3 className="font-semibold text-base text-gray-900">
-                    {monthNames[currentMonth.getMonth()]}{" "}
-                    {currentMonth.getFullYear()}
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigateMonth(1)}
-                    className="p-3 hover:bg-gray-200 rounded-lg"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </Button>
-                </div>
-
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-2 mb-6">
-                  {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-                    <div
-                      key={`day-header-${index}`}
-                      className="p-3 text-center text-sm font-semibold text-gray-600"
-                    >
-                      {day}
-                    </div>
-                  ))}
-                  {calendarDays.map((day, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleDateSelect(day)}
-                      disabled={day.isPastDate || !day.isCurrentMonth}
-                      className={`
-                        p-3 text-sm rounded-lg transition-all duration-200 relative font-medium min-h-[44px]
-                        ${
-                          day.isCurrentMonth
-                            ? day.isPastDate
-                              ? "text-gray-300 cursor-not-allowed"
-                              : "text-gray-800 hover:bg-blue-50 hover:scale-105"
-                            : "text-gray-200"
-                        }
-                        ${
-                          day.isToday
-                            ? "bg-blue-50 text-blue-600 font-bold ring-2 ring-blue-200"
-                            : ""
-                        }
-                        ${
-                          day.isSelected
-                            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold shadow-lg scale-110"
-                            : ""
-                        }
-                      `}
-                    >
-                      {day.day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Time Slots */}
-              <div className="bg-gray-50 rounded-2xl shadow-lg p-6 border border-gray-200 flex-1 min-h-0">
-                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-5 h-5 text-green-600" />
-                  </div>
-                  Available Times
-                </h2>
-
-                <div className="h-[calc(100%-80px)] overflow-y-auto scrollbar-hide">{!selectedDate && (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mx-auto mb-3">
-                      <Clock className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="text-gray-500 font-medium text-sm">
-                      Select a date first
-                    </p>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Choose your preferred date to see available time slots
-                    </p>
-                  </div>
-                )}
-
-                {selectedDate && loadingSlots && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {[...Array(6)].map((_, i) => (
+        {/* Main Content */}
+        <div className="p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full">
+            {/* Services Section */}
+            <div className="lg:col-span-1">
+              <Card className="h-full">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-red-600" />
+                    Select Service
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {services.map((service, index) => (
                       <div
-                        key={i}
-                        className="p-3 rounded-lg border border-gray-200 animate-pulse bg-white"
+                        key={service.id}
+                        onClick={() => handleServiceSelect(service)}
+                        className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                          selectedService?.id === service.id
+                            ? "border-red-500 bg-red-50 shadow-sm"
+                            : "border-gray-200 hover:border-red-200 hover:bg-gray-50"
+                        }`}
                       >
-                        <div className="h-4 bg-gray-200 rounded mb-1"></div>
-                        <div className="h-3 bg-gray-100 rounded w-2/3"></div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h3
+                              className={`font-medium text-sm ${
+                                selectedService?.id === service.id
+                                  ? "text-red-900"
+                                  : "text-gray-900"
+                              }`}
+                            >
+                              {service.name}
+                            </h3>
+                            <p
+                              className={`text-xs mt-1 ${
+                                selectedService?.id === service.id
+                                  ? "text-red-700"
+                                  : "text-gray-600"
+                              }`}
+                            >
+                              {service.description}
+                            </p>
+                          </div>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              selectedService?.id === service.id
+                                ? "bg-red-500 text-white"
+                                : "bg-gray-100 text-gray-400"
+                            }`}
+                          >
+                            {selectedService?.id === service.id ? (
+                              <Check className="w-4 h-4" />
+                            ) : (
+                              <span className="text-xs font-semibold">
+                                {index + 1}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                )}
+                </CardContent>
+              </Card>
+            </div>
 
-                {selectedDate && !loadingSlots && (
-                  <div>
-                    {availableSlots.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                          <X className="w-6 h-6 text-red-500" />
+            {/* Calendar & Time Selection */}
+            <div className="lg:col-span-1">
+              <div className="space-y-6">
+                {/* Calendar */}
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      Select Date
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {/* Month Navigation */}
+                    <div className="flex items-center justify-between mb-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigateMonth(-1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <h3 className="font-medium text-gray-900">
+                        {monthNames[currentMonth.getMonth()]}{" "}
+                        {currentMonth.getFullYear()}
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigateMonth(1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                        <div
+                          key={`day-header-${index}`}
+                          className="p-2 text-center text-xs font-medium text-gray-500"
+                        >
+                          {day}
                         </div>
-                        <p className="text-gray-600 font-medium text-sm">
-                          No slots available
+                      ))}
+                      {calendarDays.map((day, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleDateSelect(day)}
+                          disabled={day.isPastDate || !day.isCurrentMonth}
+                          className={`p-2 text-sm rounded-md transition-all duration-200 h-10 ${
+                            day.isCurrentMonth
+                              ? day.isPastDate
+                                ? "text-gray-300 cursor-not-allowed"
+                                : "text-gray-700 hover:bg-blue-50"
+                              : "text-gray-200"
+                          } ${
+                            day.isToday
+                              ? "bg-blue-50 text-blue-600 font-medium"
+                              : ""
+                          } ${
+                            day.isSelected
+                              ? "bg-blue-600 text-white font-medium"
+                              : ""
+                          }`}
+                        >
+                          {day.day}
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Time Slots */}
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-green-600" />
+                      Available Times
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {!selectedDate ? (
+                      <div className="text-center py-8">
+                        <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 text-sm">
+                          Select a date to view available times
                         </p>
-                        <p className="text-gray-500 text-xs mt-1">
-                          Try a different date or contact us directly
+                      </div>
+                    ) : loadingSlots ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[...Array(6)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-12 bg-gray-100 rounded-md animate-pulse"
+                          />
+                        ))}
+                      </div>
+                    ) : availableSlots.length === 0 ? (
+                      <div className="text-center py-8">
+                        <X className="w-12 h-12 text-red-300 mx-auto mb-3" />
+                        <p className="text-gray-600 text-sm">
+                          No available slots for this date
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Try selecting another date
                         </p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                         {availableSlots.map((slot) => (
                           <button
                             key={slot.time}
                             onClick={() => setSelectedTimeSlot(slot)}
-                            className={`
-                              p-4 rounded-lg border-2 transition-all duration-300 text-center group min-h-[60px]
-                              ${
-                                selectedTimeSlot?.time === slot.time
-                                  ? "border-green-500 bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md scale-105"
-                                  : "border-gray-200 hover:border-green-300 hover:bg-green-50 bg-white"
-                              }
-                            `}
+                            className={`p-3 rounded-md border-2 transition-all duration-200 text-sm font-medium ${
+                              selectedTimeSlot?.time === slot.time
+                                ? "border-green-500 bg-green-50 text-green-700"
+                                : "border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-700"
+                            }`}
                           >
-                            <div
-                              className={`font-bold text-base ${
-                                selectedTimeSlot?.time === slot.time
-                                  ? "text-white"
-                                  : "text-gray-900"
-                              }`}
-                            >
-                              {slot.time}
-                            </div>
-                            <div
-                              className={`text-sm mt-1 ${
-                                selectedTimeSlot?.time === slot.time
-                                  ? "text-green-100"
-                                  : "text-gray-500"
-                              }`}
-                            >
-                              Available
-                            </div>
+                            {slot.time}
                           </button>
                         ))}
                       </div>
                     )}
-                  </div>
-                )}
-                </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
-          </div>
 
-          {/* Booking Summary & CTA */}
-          <div className="xl:col-span-1 lg:col-span-1 col-span-1">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl shadow-xl p-6 border border-gray-200 h-full flex flex-col">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl mb-3">
-                  <Check className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">
-                  Booking Summary
-                </h2>
-                <p className="text-gray-600 text-sm">Review your selection</p>
-              </div>
+            {/* Booking Summary */}
+            <div className="lg:col-span-1">
+              <Card className="h-full">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Check className="w-5 h-5 text-green-600" />
+                    Booking Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 flex flex-col h-full">
+                  <div className="space-y-3 flex-1">
+                    {/* Service Summary */}
+                    <div
+                      className={`p-3 rounded-lg border ${
+                        selectedService
+                          ? "border-red-200 bg-red-50"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-md flex items-center justify-center ${
+                            selectedService ? "bg-red-500" : "bg-gray-300"
+                          }`}
+                        >
+                          <Sparkles
+                            className={`w-4 h-4 ${
+                              selectedService ? "text-white" : "text-gray-500"
+                            }`}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            Service
+                          </p>
+                          <p className="text-xs text-gray-600 truncate">
+                            {selectedService
+                              ? selectedService.name
+                              : "No service selected"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-              <div className="space-y-4 mb-6 flex-1 min-h-0">
-                <div
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                    selectedService
-                      ? "border-red-200 bg-red-50 shadow-sm"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      selectedService ? "bg-red-500" : "bg-gray-300"
-                    }`}>
-                      <Sparkles
-                        className={`w-5 h-5 ${
-                          selectedService ? "text-white" : "text-gray-500"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm">Service</p>
-                      <p className="text-sm text-gray-600 mt-1 leading-tight truncate">
-                        {selectedService
-                          ? selectedService.name
-                          : "Choose your service"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                    selectedDate
-                      ? "border-blue-200 bg-blue-50 shadow-sm"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      selectedDate ? "bg-blue-500" : "bg-gray-300"
-                    }`}>
-                      <Calendar
-                        className={`w-5 h-5 ${
-                          selectedDate ? "text-white" : "text-gray-500"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm">Date</p>
-                      <p className="text-sm text-gray-600 mt-1 leading-tight">
-                        {selectedDate
-                          ? selectedDate.toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })
-                          : "Select your date"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                    selectedTimeSlot
-                      ? "border-green-200 bg-green-50 shadow-sm"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      selectedTimeSlot ? "bg-green-500" : "bg-gray-300"
-                    }`}>
-                      <Clock
-                        className={`w-5 h-5 ${
-                          selectedTimeSlot ? "text-white" : "text-gray-500"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm">Time</p>
-                      <p className="text-sm text-gray-600 mt-1 leading-tight">
-                        {selectedTimeSlot
-                          ? selectedTimeSlot.time
-                          : "Choose your time"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Compact Progress Indicator */}
-              <div className="mb-6">
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-700 mb-3">
-                    Booking Progress
-                  </p>
-                  
-                  {/* Shadcn Progress Bar */}
-                  <div className="mb-3">
-                    <Progress 
-                      value={
-                        !selectedService ? 0 :
-                        !selectedDate ? 33 :
-                        !selectedTimeSlot ? 66 : 100
-                      } 
-                      className="w-full h-2"
-                    />
-                  </div>
-                  
-                  <p className="text-sm text-gray-500">
-                    {!selectedService ? "Step 1: Choose Service" :
-                     !selectedDate ? "Step 2: Select Date" :
-                     !selectedTimeSlot ? "Step 3: Pick Time" : "Ready to Book!"}
-                  </p>
-                </div>
-              </div>
-
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    disabled={
-                      !selectedDate || !selectedTimeSlot || !selectedService
-                    }
-                    className={`
-                      w-full py-4 text-base font-bold rounded-xl transition-all duration-300 transform
-                      ${
-                        selectedDate && selectedTimeSlot && selectedService
-                          ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:scale-105"
-                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      }
-                    `}
-                  >
-                    {selectedDate && selectedTimeSlot && selectedService ? (
-                      "Book My Service"
-                    ) : (
-                      "Complete Selection Above"
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg mx-4 rounded-2xl border-0 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                  <DialogHeader className="text-center space-y-2 pb-4 shrink-0">
-                    <div className="mx-auto w-12 h-12 bg-gradient-to-r from-red-800 to-red-900 rounded-full flex items-center justify-center mb-3">
-                      <Calendar className="w-6 h-6 text-white" />
-                    </div>
-                    <DialogTitle className="text-xl font-bold text-gray-900">
-                      Confirm Your Booking
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-600 text-sm">
-                      Please review your booking details before confirming
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div
-                    className="flex-1 overflow-auto space-y-4 px-1"
-                    style={{ maxHeight: "calc(90vh - 200px)" }}
-                  >
-                    {/* Booking Summary Card */}
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-red-800" />
-                        Booking Details
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                              <Calendar className="w-4 h-4 text-blue-600" />
-                            </div>
-                            <span className="text-gray-700 font-medium text-sm">
-                              Date
-                            </span>
-                          </div>
-                          <span className="font-semibold text-gray-900 text-sm">
+                    {/* Date Summary */}
+                    <div
+                      className={`p-3 rounded-lg border ${
+                        selectedDate
+                          ? "border-blue-200 bg-blue-50"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-md flex items-center justify-center ${
+                            selectedDate ? "bg-blue-500" : "bg-gray-300"
+                          }`}
+                        >
+                          <Calendar
+                            className={`w-4 h-4 ${
+                              selectedDate ? "text-white" : "text-gray-500"
+                            }`}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            Date
+                          </p>
+                          <p className="text-xs text-gray-600">
                             {selectedDate
                               ? selectedDate.toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",
                                 })
-                              : "Not selected"}
-                          </span>
+                              : "No date selected"}
+                          </p>
                         </div>
+                      </div>
+                    </div>
 
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
-                              <Clock className="w-4 h-4 text-green-600" />
-                            </div>
-                            <span className="text-gray-700 font-medium text-sm">
-                              Time
-                            </span>
-                          </div>
-                          <span className="font-semibold text-gray-900 text-sm">
+                    {/* Time Summary */}
+                    <div
+                      className={`p-3 rounded-lg border ${
+                        selectedTimeSlot
+                          ? "border-green-200 bg-green-50"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-md flex items-center justify-center ${
+                            selectedTimeSlot ? "bg-green-500" : "bg-gray-300"
+                          }`}
+                        >
+                          <Clock
+                            className={`w-4 h-4 ${
+                              selectedTimeSlot ? "text-white" : "text-gray-500"
+                            }`}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            Time
+                          </p>
+                          <p className="text-xs text-gray-600">
                             {selectedTimeSlot
                               ? selectedTimeSlot.time
-                              : "Not selected"}
-                          </span>
+                              : "No time selected"}
+                          </p>
                         </div>
+                      </div>
+                    </div>
 
-                        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
-                              <Sparkles className="w-4 h-4 text-purple-600" />
+                    {/* Progress */}
+                    <div className="pt-3">
+                      <div className="mb-2">
+                        <Progress
+                          value={
+                            !selectedService
+                              ? 0
+                              : !selectedDate
+                              ? 33
+                              : !selectedTimeSlot
+                              ? 66
+                              : 100
+                          }
+                          className="h-2"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 text-center">
+                        {!selectedService
+                          ? "Choose a service to start"
+                          : !selectedDate
+                          ? "Select your preferred date"
+                          : !selectedTimeSlot
+                          ? "Pick an available time"
+                          : "Ready to book!"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Book Button */}
+                  <div className="pt-4 mt-auto">
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          disabled={
+                            !selectedDate ||
+                            !selectedTimeSlot ||
+                            !selectedService
+                          }
+                          className={`w-full ${
+                            selectedDate && selectedTimeSlot && selectedService
+                              ? "bg-red-600 hover:bg-red-700"
+                              : "bg-gray-300 cursor-not-allowed"
+                          }`}
+                          size="lg"
+                        >
+                          {selectedDate && selectedTimeSlot && selectedService
+                            ? "Book Appointment"
+                            : "Complete Your Selection"}
+                        </Button>
+                      </DialogTrigger>
+
+                      <DialogContent className="sm:max-w-md mx-4 rounded-lg">
+                        <DialogHeader className="text-center pb-4">
+                          <DialogTitle className="text-xl font-semibold text-gray-900">
+                            Confirm Your Booking
+                          </DialogTitle>
+                          <DialogDescription className="text-gray-600 text-sm">
+                            Review your booking details and confirm
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                          {/* Booking Details */}
+                          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-gray-600">
+                                Service
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {selectedService?.name}
+                              </span>
                             </div>
-                            <span className="text-gray-700 font-medium text-sm">
-                              Service
-                            </span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-gray-600">
+                                Date
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {selectedDate?.toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-gray-600">
+                                Time
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {selectedTimeSlot?.time}
+                              </span>
+                            </div>
                           </div>
-                          <span className="font-semibold text-gray-900 text-sm">
-                            {selectedService
-                              ? selectedService.name
-                              : "Not selected"}
-                          </span>
+
+                          {/* Vehicle Selection */}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                              Vehicle Type
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => setSelectedVehicle("motorcycle")}
+                                className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                                  selectedVehicle === "motorcycle"
+                                    ? "border-red-500 bg-red-50 text-red-700"
+                                    : "border-gray-200 text-gray-700 hover:border-gray-300"
+                                }`}
+                              >
+                                🏍️ Motorcycle
+                              </button>
+                              <button
+                                onClick={() => setSelectedVehicle("automobile")}
+                                className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                                  selectedVehicle === "automobile"
+                                    ? "border-red-500 bg-red-50 text-red-700"
+                                    : "border-gray-200 text-gray-700 hover:border-gray-300"
+                                }`}
+                              >
+                                🚗 Automobile
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Notes */}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                              Additional Notes (Optional)
+                            </Label>
+                            <textarea
+                              value={notes}
+                              onChange={(e) => setNotes(e.target.value)}
+                              placeholder="Any special instructions..."
+                              className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none text-sm"
+                              rows={3}
+                              maxLength={500}
+                            />
+                            <div className="text-xs text-gray-400 text-right mt-1">
+                              {notes.length}/500
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Vehicle Selection */}
-                    <div className="bg-white rounded-xl p-3 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        <Car className="w-4 h-4 text-red-800" />
-                        Vehicle Type
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => setSelectedVehicle("motorcycle")}
-                          className={`p-2 rounded-lg border transition-all duration-200 text-sm ${
-                            selectedVehicle === "motorcycle"
-                              ? "border-red-800 bg-red-50 text-red-800"
-                              : "border-gray-200 hover:border-gray-300 text-gray-700"
-                          }`}
-                        >
-                          <div className="font-medium">🏍️ Motorcycle</div>
-                        </button>
-                        <button
-                          onClick={() => setSelectedVehicle("automobile")}
-                          className={`p-2 rounded-lg border transition-all duration-200 text-sm ${
-                            selectedVehicle === "automobile"
-                              ? "border-red-800 bg-red-50 text-red-800"
-                              : "border-gray-200 hover:border-gray-300 text-gray-700"
-                          }`}
-                        >
-                          <div className="font-medium">🚗 Automobile</div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Notes Section */}
-                    <div className="bg-white rounded-xl p-3 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Additional Notes
-                      </h4>
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Add any special instructions or notes..."
-                        className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-800/20 focus:border-red-800 resize-none text-sm"
-                        rows={2}
-                        maxLength={500}
-                      />
-                      <div className="text-xs text-gray-500 mt-1 text-right">
-                        {notes.length}/500 characters
-                      </div>
-                    </div>
+                        {/* Actions */}
+                        <div className="flex gap-3 pt-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsDialogOpen(false)}
+                            className="flex-1"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleBooking}
+                            disabled={bookingLoading}
+                            className="flex-1 bg-red-600 hover:bg-red-700"
+                          >
+                            {bookingLoading ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Booking...
+                              </div>
+                            ) : bookingSuccess ? (
+                              <div className="flex items-center gap-2">
+                                <Check className="w-4 h-4" />
+                                Confirmed!
+                              </div>
+                            ) : (
+                              "Confirm Booking"
+                            )}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-
-                  {/* Fixed Buttons at Bottom */}
-                  <div className="flex gap-3 pt-4 border-t border-gray-200 mt-4 shrink-0">
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                      className="flex-1 py-2 text-gray-700 border-gray-300 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleBooking}
-                      disabled={bookingLoading}
-                      className="flex-1 bg-gradient-to-r from-red-800 to-red-900 hover:from-red-900 hover:to-red-950 text-white py-2 text-sm font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-                    >
-                      {bookingLoading ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Creating Booking...
-                        </div>
-                      ) : bookingSuccess ? (
-                        <div className="flex items-center gap-2">
-                          <Check className="w-4 h-4" />
-                          Booking Confirmed!
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Check className="w-4 h-4" />
-                          Confirm Booking
-                        </div>
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

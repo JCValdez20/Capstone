@@ -4,7 +4,17 @@ class BookingService {
   // Create a new booking
   async createBooking(bookingData) {
     try {
-      const response = await axios.post("/bookings/create", bookingData);
+      // Ensure we use the user token for bookings
+      const userToken = localStorage.getItem("token");
+      if (!userToken) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const response = await axios.post("/bookings/create", bookingData, {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -14,7 +24,18 @@ class BookingService {
   // Get user's bookings
   async getUserBookings(params = {}) {
     try {
-      const response = await axios.get("/bookings/my-bookings", { params });
+      // Ensure we use the user token for fetching user bookings
+      const userToken = localStorage.getItem("token");
+      if (!userToken) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const response = await axios.get("/bookings/my-bookings", {
+        params,
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -26,8 +47,20 @@ class BookingService {
     try {
       const formattedDate =
         typeof date === "string" ? date : date.toISOString().split("T")[0];
+
+      // Use user token for consistency
+      const userToken = localStorage.getItem("token");
+      if (!userToken) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
       const response = await axios.get(
-        `/bookings/available-slots/${formattedDate}`
+        `/bookings/available-slots/${formattedDate}`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
       );
 
       // Transform the response to match frontend expectations
@@ -41,7 +74,21 @@ class BookingService {
   // Cancel a booking
   async cancelBooking(bookingId) {
     try {
-      const response = await axios.patch(`/bookings/cancel/${bookingId}`);
+      // Ensure we use the user token for canceling bookings
+      const userToken = localStorage.getItem("token");
+      if (!userToken) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const response = await axios.patch(
+        `/bookings/cancel/${bookingId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       throw this.handleError(error);

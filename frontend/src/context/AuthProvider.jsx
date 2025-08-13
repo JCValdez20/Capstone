@@ -26,6 +26,12 @@ export function AuthProvider({ children }) {
         return { valid: false };
       }
 
+      // Basic token format validation
+      if (!token.includes(".")) {
+        console.log("Invalid token format detected, clearing auth");
+        return { valid: false };
+      }
+
       return { valid: true, user: storedUser };
     } catch (error) {
       console.error("Token verification error:", error);
@@ -133,6 +139,9 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(user));
+
+      console.log("Login successful - Token stored:", data.token ? "✓" : "✗");
+      console.log("Login successful - User stored:", user ? "✓" : "✗");
 
       const newAuthState = {
         user,
