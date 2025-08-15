@@ -22,6 +22,7 @@ import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
 import UserManagement from "./pages/admin/dashboard/UserManagement.jsx";
 import AdminBookings from "./pages/admin/dashboard/AdminBookings.jsx";
+import AdminSidebar from "./components/AdminSidebar.jsx";
 
 const router = createBrowserRouter([
   {
@@ -61,15 +62,27 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/admin/dashboard",
-        element: <AdminDashboard />,
+        element: (
+          <AdminSidebar>
+            <AdminDashboard />
+          </AdminSidebar>
+        ),
       },
       {
         path: "/admin/users",
-        element: <UserManagement />,
+        element: (
+          <AdminSidebar>
+            <UserManagement />
+          </AdminSidebar>
+        ),
       },
       {
         path: "/admin/bookings",
-        element: <AdminBookings />,
+        element: (
+          <AdminSidebar>
+            <AdminBookings />
+          </AdminSidebar>
+        ),
       },
     ],
   },

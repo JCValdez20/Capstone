@@ -77,7 +77,7 @@ const AdminSidebar = ({ children }) => {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen bg-slate-50">
+      <div className="flex h-screen bg-white w-full">
         <Sidebar
           collapsible="icon"
           className="group/sidebar border-r border-slate-200 bg-white"
@@ -202,7 +202,9 @@ const AdminSidebar = ({ children }) => {
         </Sidebar>
 
         {/* MAIN */}
-        <main className="flex-1 overflow-auto bg-slate-50">{children}</main>
+        <main className="flex-1 w-full overflow-auto bg-white min-w-0">
+          {children}
+        </main>
       </div>
     </SidebarProvider>
   );

@@ -319,8 +319,8 @@ const Bookings = () => {
   return (
     <div className="flex h-screen w-full bg-white">
       {/* Compact Header */}
-      <div className="w-full">
-        <div className="bg-white px-4 py-4 border-b border-gray-200">
+      <div className="w-full flex flex-col h-full">
+        <div className="bg-white px-4 py-4 border-b border-gray-200 flex-shrink-0">
           <h1 className="text-2xl font-semibold text-gray-900">
             Book Your Service, <span className="text-red-600">{fullName}</span>
           </h1>
@@ -354,7 +354,7 @@ const Bookings = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="space-y-2">
                     {services.map((service, index) => (
                       <div
                         key={service.id}
@@ -460,20 +460,16 @@ const Bookings = () => {
                           key={index}
                           onClick={() => handleDateSelect(day)}
                           disabled={day.isPastDate || !day.isCurrentMonth}
-                          className={`p-2 text-sm rounded-md transition-all duration-200 h-10 ${
+                          className={`p-2 text-sm rounded-lg transition-all duration-200 h-10 border ${
                             day.isCurrentMonth
                               ? day.isPastDate
-                                ? "text-gray-300 cursor-not-allowed"
-                                : "text-gray-700 hover:bg-blue-50"
-                              : "text-gray-200"
-                          } ${
-                            day.isToday
-                              ? "bg-blue-50 text-blue-600 font-medium"
-                              : ""
-                          } ${
-                            day.isSelected
-                              ? "bg-blue-600 text-white font-medium"
-                              : ""
+                                ? "text-gray-300 cursor-not-allowed border-transparent bg-gray-50"
+                                : day.isSelected
+                                ? "bg-blue-600 text-white border-blue-600 shadow-sm font-medium"
+                                : day.isToday
+                                ? "bg-blue-50 text-blue-600 border-blue-200 font-medium hover:bg-blue-100 hover:border-blue-300"
+                                : "text-gray-700 border-transparent hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"
+                              : "text-gray-200 cursor-not-allowed border-transparent bg-gray-50"
                           }`}
                         >
                           {day.day}

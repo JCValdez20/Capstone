@@ -41,7 +41,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import AdminSidebar from "@/components/AdminSidebar";
 import adminService from "@/services/adminService";
 
 const AdminBookings = () => {
@@ -60,7 +59,9 @@ const AdminBookings = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching bookings...");
       const response = await adminService.getAllBookings();
+      console.log("Raw API Response:", response);
 
       // Ensure we always set an array
       let bookingsData = [];
@@ -68,6 +69,7 @@ const AdminBookings = () => {
       // The API returns { bookings: [...], pagination: {...} }
       if (response && response.bookings && Array.isArray(response.bookings)) {
         bookingsData = response.bookings;
+        console.log("Using response.bookings:", bookingsData);
       } else if (
         response &&
         response.data &&
@@ -75,16 +77,28 @@ const AdminBookings = () => {
         Array.isArray(response.data.bookings)
       ) {
         bookingsData = response.data.bookings;
+        console.log("Using response.data.bookings:", bookingsData);
       } else if (response && response.data && Array.isArray(response.data)) {
         bookingsData = response.data;
+        console.log("Using response.data:", bookingsData);
       } else if (response && Array.isArray(response)) {
         bookingsData = response;
+        console.log("Using response directly:", bookingsData);
+      } else {
+        console.warn("Unexpected response format:", response);
+        console.warn("Response type:", typeof response);
+        if (response && typeof response === "object") {
+          console.warn("Response keys:", Object.keys(response));
+        }
       }
 
+      console.log("Final processed bookings data:", bookingsData);
+      console.log("Bookings array length:", bookingsData.length);
       setBookings(bookingsData);
       setError("");
     } catch (err) {
       console.error("Error fetching bookings:", err);
+      console.error("Error details:", err.response?.data || err.message);
       setError("Failed to load bookings. Please try again.");
       setBookings([]); // Ensure we always have an array
     } finally {
@@ -284,160 +298,157 @@ const AdminBookings = () => {
 
   if (loading) {
     return (
-      <AdminSidebar>
-        <div className="p-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-          <div className="max-w-[1400px] mx-auto space-y-8">
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center space-y-4">
-                <div className="relative">
-                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mx-auto"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-primary/60" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-lg font-semibold text-gray-900">
-                    Loading bookings...
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Please wait while we fetch the booking data
-                  </p>
-                </div>
+      <div className="h-screen bg-gradient-to-br from-slate-50 to-gray-100 overflow-hidden">
+        <div className="h-full p-8 flex flex-col items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mx-auto"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-primary/60" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-lg font-semibold text-gray-900">
+                Loading bookings...
+              </p>
+              <p className="text-sm text-gray-500">
+                Please wait while we fetch the booking data
+              </p>
             </div>
           </div>
         </div>
-      </AdminSidebar>
+      </div>
     );
   }
 
   if (error && safeBookings.length === 0) {
     return (
-      <AdminSidebar>
-        <div className="p-8 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-          <div className="max-w-[1400px] mx-auto space-y-8">
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="text-center py-12">
-                <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <p className="text-red-700 text-lg font-semibold">{error}</p>
-                <Button
-                  onClick={fetchBookings}
-                  className="mt-4"
-                  variant="outline"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+      <div className="h-screen bg-gradient-to-br from-slate-50 to-gray-100 overflow-hidden">
+        <div className="h-full p-8 flex flex-col items-center justify-center">
+          <Card className="border-red-200 bg-red-50 max-w-md">
+            <CardContent className="text-center py-12">
+              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <p className="text-red-700 text-lg font-semibold">{error}</p>
+              <Button
+                onClick={fetchBookings}
+                className="mt-4"
+                variant="outline"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
         </div>
-      </AdminSidebar>
+      </div>
     );
   }
 
   return (
-    <AdminSidebar>
-      <div className="min-h-screen bg-gray-50/50">
-        <div className="p-4 lg:p-6 space-y-6">
-          {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div className="h-screen bg-gradient-to-br from-slate-50 to-gray-100 overflow-hidden">
+      {/* Main Content Container with Equal Margins */}
+      <div className="h-full p-8 flex flex-col">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+              <Calendar className="w-8 h-8 text-white" />
+            </div>
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900">
                 Booking Management
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-gray-600 text-lg">
                 Manage customer bookings and appointments
               </p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={fetchBookings}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-                disabled={loading}
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-                />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-            </div>
           </div>
 
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {safeBookings.length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-yellow-600">
-                      {pendingCount}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-yellow-50 rounded-lg">
-                    <Clock className="w-5 h-5 text-yellow-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Confirmed
-                    </p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {confirmedCount}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Completed
-                    </p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {completedCount}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={fetchBookings}
+              variant="outline"
+              size="lg"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl border-2 hover:bg-blue-50"
+              disabled={loading}
+            >
+              <RefreshCw
+                className={`w-5 h-5 ${loading ? "animate-spin" : ""}`}
+              />
+              <span>Refresh Data</span>
+            </Button>
           </div>
+        </div>
 
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-0 shadow-sm bg-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {safeBookings.length}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm bg-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {pendingCount}
+                  </p>
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <Clock className="w-5 h-5 text-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm bg-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Confirmed</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {confirmedCount}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-sm bg-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {completedCount}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content - Takes Remaining Space */}
+        <div className="flex-1 space-y-6">
           {/* Search and Filter */}
           <Card className="border-0 shadow-sm bg-white">
             <CardContent className="p-4">
@@ -847,7 +858,7 @@ const AdminBookings = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminSidebar>
+    </div>
   );
 };
 
