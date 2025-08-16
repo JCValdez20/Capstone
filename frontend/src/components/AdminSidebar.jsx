@@ -185,10 +185,7 @@ const AdminSidebar = ({ children }) => {
                   <p className="text-xs text-slate-500">{userEmail}</p>
                 </div>
                 <DropdownMenuSeparator className="bg-slate-100" />
-                <DropdownMenuItem className="gap-2 text-slate-700 hover:bg-slate-50 cursor-pointer">
-                  <User className="w-4 h-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
+
                 <DropdownMenuItem
                   className="gap-2 text-red-600 hover:bg-red-50 cursor-pointer"
                   onClick={handleLogout}

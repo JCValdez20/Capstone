@@ -66,7 +66,6 @@ const UserManagement = () => {
   const customerCount = users.filter(
     (user) => user.roles === "customer"
   ).length;
-  const googleUserCount = users.filter((user) => user.isGoogleUser).length;
 
   if (loading) {
     return (
@@ -124,7 +123,7 @@ const UserManagement = () => {
           <div className="p-4">
             <div className="w-full space-y-6">
               {/* Statistics Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <Card className="bg-white border-0 shadow-sm rounded-xl hover:shadow-md transition-shadow duration-300">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -156,24 +155,6 @@ const UserManagement = () => {
                       </div>
                       <div className="p-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl">
                         <User className="w-8 h-8 text-white" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white border-0 shadow-sm rounded-xl hover:shadow-md transition-shadow duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                          Google Users
-                        </p>
-                        <p className="text-3xl font-bold text-gray-900">
-                          {googleUserCount}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl">
-                        <Shield className="w-8 h-8 text-white" />
                       </div>
                     </div>
                   </CardContent>
@@ -281,9 +262,6 @@ const UserManagement = () => {
                               Account Type
                             </th>
                             <th className="text-left p-4 font-medium">
-                              Auth Method
-                            </th>
-                            <th className="text-left p-4 font-medium">
                               Actions
                             </th>
                           </tr>
@@ -343,28 +321,7 @@ const UserManagement = () => {
                                 </Badge>
                               </td>
                               <td className="p-4">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    user.isGoogleUser
-                                      ? "border-green-200 text-green-800 bg-green-50"
-                                      : "border-gray-200 text-gray-800 bg-gray-50"
-                                  }
-                                >
-                                  {user.isGoogleUser
-                                    ? "Google OAuth"
-                                    : "Email/Password"}
-                                </Badge>
-                              </td>
-                              <td className="p-4">
                                 <div className="flex items-center space-x-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  >
-                                    Edit
-                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"

@@ -58,11 +58,15 @@ const userRoutes = require("./routes/UserRoutes");
 const authRoutes = require("./routes/AuthRoutes");
 const adminRoutes = require("./routes/AdminRoutes");
 const bookingRoutes = require("./routes/BookingRoutes");
+const messagingRoutes = require("./routes/MessagingRoutes");
+const testRoutes = require("./routes/TestRoutes");
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/messaging", messagingRoutes);
+app.use("/test", testRoutes);
 
 app.use((req, res, next) => {
   const error = new Error("Not Found");

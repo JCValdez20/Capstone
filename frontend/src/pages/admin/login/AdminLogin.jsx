@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,20 @@ const AdminLogin = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  // Check if admin is already logged in and redirect
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      if (adminService.isAuthenticated()) {
+        toast.info("Already logged in", {
+          description: "Redirecting to admin dashboard...",
+        });
+        navigate("/admin/dashboard", { replace: true });
+      }
+    };
+
+    checkAuthStatus();
+  }, [navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

@@ -3,7 +3,6 @@ const send = require("../utils/Response");
 
 module.exports = (req, res, next) => {
   try {
-    // Check if authorization header exists
     if (!req.headers.authorization) {
       return send.sendErrorMessage(
         res,
@@ -12,7 +11,6 @@ module.exports = (req, res, next) => {
       );
     }
 
-    // Check if authorization header has the correct format
     const authHeader = req.headers.authorization;
     if (!authHeader.startsWith("Bearer ")) {
       return send.sendErrorMessage(
