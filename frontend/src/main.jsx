@@ -18,11 +18,15 @@ import AuthRedirect from "./utils/AuthRedirect.jsx";
 import BookingHistory from "./pages/user/dashboard/BookingHistory.jsx";
 import Profile from "./pages/user/profile/Profile.jsx";
 import AdminProtected from "./utils/AdminRoute.jsx";
+import StaffProtected from "./utils/StaffRoute.jsx";
 import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
 import UserManagement from "./pages/admin/dashboard/UserManagement.jsx";
 import AdminBookings from "./pages/admin/dashboard/AdminBookings.jsx";
 import StaffManagement from "./pages/admin/dashboard/StaffManagement.jsx";
+import StaffDashboard from "./pages/staff/dashboard/StaffDashboard.jsx";
+import StaffUserManagement from "./pages/staff/dashboard/StaffUserManagement.jsx";
+import StaffBookings from "./pages/staff/dashboard/StaffBookings.jsx";
 import AdminSidebar from "./components/AdminSidebar.jsx";
 
 const router = createBrowserRouter([
@@ -90,6 +94,35 @@ const router = createBrowserRouter([
         element: (
           <AdminSidebar>
             <StaffManagement />
+          </AdminSidebar>
+        ),
+      },
+    ],
+  },
+  {
+    element: <StaffProtected />,
+    children: [
+      {
+        path: "/staff/dashboard",
+        element: (
+          <AdminSidebar>
+            <StaffDashboard />
+          </AdminSidebar>
+        ),
+      },
+      {
+        path: "/staff/users",
+        element: (
+          <AdminSidebar>
+            <StaffUserManagement />
+          </AdminSidebar>
+        ),
+      },
+      {
+        path: "/staff/bookings",
+        element: (
+          <AdminSidebar>
+            <StaffBookings />
           </AdminSidebar>
         ),
       },

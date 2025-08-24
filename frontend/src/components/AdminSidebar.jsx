@@ -58,19 +58,19 @@ const AdminSidebar = ({ children }) => {
     {
       icon: Home,
       label: "Dashboard",
-      path: "/admin/dashboard",
-      tooltip: "Admin Dashboard",
+      path: currentAdmin?.roles === "admin" ? "/admin/dashboard" : "/staff/dashboard",
+      tooltip: "Dashboard",
     },
     {
       icon: Users,
       label: "User Management",
-      path: "/admin/users",
+      path: currentAdmin?.roles === "admin" ? "/admin/users" : "/staff/users",
       tooltip: "Manage Users",
     },
     {
       icon: Calendar,
       label: "Booking Management",
-      path: "/admin/bookings",
+      path: currentAdmin?.roles === "admin" ? "/admin/bookings" : "/staff/bookings",
       tooltip: "Manage Bookings",
     },
     // Show Staff Management only for admin role

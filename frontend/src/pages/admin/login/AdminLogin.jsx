@@ -26,14 +26,16 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // Check if admin is already logged in and redirect
+  // Check if admin/staff is already logged in and redirect
   useEffect(() => {
     const checkAuthStatus = () => {
       if (adminService.isAuthenticated()) {
+        const currentUser = adminService.getCurrentAdmin();
+        const redirectPath = currentUser?.roles === "admin" ? "/admin/dashboard" : "/staff/dashboard";
         toast.info("Already logged in", {
-          description: "Redirecting to admin dashboard...",
+          description: "Redirecting to dashboard...",
         });
-        navigate("/admin/dashboard", { replace: true });
+        navigate(redirectPath, { replace: true });
       }
     };
 
@@ -61,22 +63,25 @@ const AdminLogin = () => {
         formData.password
       );
 
-      // Check if the logged in user is actually an admin
-      if (response.user.role !== "admin") {
-        setError("Access denied. Admin privileges required.");
+      // Check if the logged in user is admin or staff
+      const userRole = response.user.role || response.user.roles;
+      if (userRole !== "admin" && userRole !== "staff") {
+        setError("Access denied. Admin or Staff privileges required.");
         adminService.logout(); // Clean up any stored data
         toast.error("Access denied", {
-          description: "Admin privileges required to access this area.",
+          description: "Admin or Staff privileges required to access this area.",
         });
         return;
       }
 
-      toast.success("Admin login successful", {
-        description: "Welcome to the admin dashboard!",
+      const isAdmin = userRole === "admin";
+      toast.success(`${isAdmin ? "Admin" : "Staff"} login successful`, {
+        description: `Welcome to the ${isAdmin ? "admin" : "staff"} dashboard!`,
       });
 
-      // Redirect to admin dashboard on successful login
-      navigate("/admin/dashboard", { replace: true });
+      // Redirect based on role
+      const redirectPath = isAdmin ? "/admin/dashboard" : "/staff/dashboard";
+      navigate(redirectPath, { replace: true });
     } catch (error) {
       setError(error.message || "Login failed. Please try again.");
       toast.error("Login failed", {
@@ -99,7 +104,7 @@ const AdminLogin = () => {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Admin Portal
+            Management Portal
           </h1>
           <p className="text-gray-600">BookUp MotMot Administration</p>
         </div>
@@ -111,7 +116,7 @@ const AdminLogin = () => {
                 Welcome Back
               </CardTitle>
               <CardDescription className="text-gray-600 mt-2">
-                Sign in to access your admin dashboard
+                Sign in to access your dashboard
               </CardDescription>
             </div>
           </CardHeader>
