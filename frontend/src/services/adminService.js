@@ -36,7 +36,14 @@ class AdminService {
   isAuthenticated() {
     const token = localStorage.getItem("adminToken");
     const admin = this.getCurrentAdmin();
-    return !!(token && admin && admin.role === "admin");
+    return !!(
+      token &&
+      admin &&
+      (admin.role === "admin" ||
+        admin.roles === "admin" ||
+        admin.role === "staff" ||
+        admin.roles === "staff")
+    );
   }
 
   // Get admin token
@@ -201,6 +208,76 @@ class AdminService {
           Authorization: `Bearer ${this.getToken()}`,
         },
       });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  // Staff Management Methods
+  async createStaffAccount(staffData) {
+    try {
+      const response = await axios.post("/admin/staff", staffData, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  async getAllStaff() {
+    try {
+      const response = await axios.get("/admin/staff", {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  async updateStaffAccount(staffId, staffData) {
+    try {
+      const response = await axios.put(`/admin/staff/${staffId}`, staffData, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  async deleteStaffAccount(staffId) {
+    try {
+      const response = await axios.delete(`/admin/staff/${staffId}`, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  async resetStaffPassword(staffId, passwordData) {
+    try {
+      const response = await axios.put(
+        `/admin/staff/${staffId}/reset-password`,
+        passwordData,
+        {
+          headers: {
+            Authorization: `Bearer ${this.getToken()}`,
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

@@ -82,6 +82,48 @@ const bookingSchema = new mongoose.Schema({
     maxlength: 500,
   },
 
+  // Track who updated the booking
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Users",
+    required: false,
+  },
+
+  // Update history - track all status changes
+  statusHistory: [
+    {
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "confirmed",
+          "completed",
+          "cancelled",
+          "no-show",
+          "rejected",
+        ],
+        required: true,
+      },
+      updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Users",
+        required: false,
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+      reason: {
+        type: String,
+        maxlength: 500,
+      },
+      notes: {
+        type: String,
+        maxlength: 500,
+      },
+    },
+  ],
+
   // Metadata - NO pre-save middleware
   createdAt: {
     type: Date,

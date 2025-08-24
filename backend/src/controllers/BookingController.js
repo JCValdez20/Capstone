@@ -312,26 +312,21 @@ exports.cancelBooking = async (req, res) => {
   }
 };
 
-// Update booking status (Admin only) - MANAGES SLOT AVAILABILITY
+// Update booking status (Admin/Staff only) - MANAGES SLOT AVAILABILITY
 exports.updateBookingStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes, rejectionReason } = req.body;
 
-    // Restrict admin status updates to only: confirmed, completed, no-show, rejected
-    const allowedAdminStatuses = [
-      "confirmed",
-      "completed",
-      "no-show",
-      "rejected",
-    ];
+    // Restrict admin/staff status updates to only: confirmed, completed, no-show, rejected
+    const allowedStatuses = ["confirmed", "completed", "no-show", "rejected"];
 
-    if (!allowedAdminStatuses.includes(status)) {
+    if (!allowedStatuses.includes(status)) {
       return send.sendErrorMessage(
         res,
         400,
         new Error(
-          `Invalid status. Admin can only update status to: ${allowedAdminStatuses.join(
+          `Invalid status. Admin/Staff can only update status to: ${allowedStatuses.join(
             ", "
           )}`
         )
@@ -357,18 +352,32 @@ exports.updateBookingStatus = async (req, res) => {
 
     const previousStatus = booking.status;
 
+    // Add to status history
+    const statusHistoryEntry = {
+      status: status,
+      updatedBy: req.user.id || req.user.userId, // Support both token formats
+      updatedAt: new Date(),
+      reason: status === "rejected" ? rejectionReason : undefined,
+      notes: notes || undefined,
+    };
+
     // Update with timestamp logic in controller
     const updatedData = updateTimestamp({
       status,
       notes: notes || booking.notes,
       rejectionReason:
         status === "rejected" ? rejectionReason : booking.rejectionReason,
+      updatedBy: req.user.id || req.user.userId, // Track who updated
+      $push: { statusHistory: statusHistoryEntry },
     });
 
     const updatedBooking = await Booking.findByIdAndUpdate(id, updatedData, {
       new: true,
       runValidators: true,
-    }).populate("user", "first_name last_name email"); // Populate user data
+    })
+      .populate("user", "first_name last_name email")
+      .populate("updatedBy", "first_name last_name email roles")
+      .populate("statusHistory.updatedBy", "first_name last_name email roles");
 
     // 🔥 AVAILABILITY LOGIC EXPLANATION:
     let message = `Booking ${status} successfully`;
@@ -387,6 +396,13 @@ exports.updateBookingStatus = async (req, res) => {
     ) {
       message += " - Time slot is now occupied";
     }
+
+    // Add who updated info to the message
+    const updatedByUser =
+      req.user.first_name && req.user.last_name
+        ? `${req.user.first_name} ${req.user.last_name}`
+        : req.user.email;
+    message += ` (Updated by: ${updatedByUser})`;
 
     return send.sendResponseMessage(res, 200, updatedBooking, message);
   } catch (error) {

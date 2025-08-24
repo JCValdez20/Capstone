@@ -675,7 +675,9 @@ const AdminBookings = () => {
                                 </div>
 
                                 {/* Notes and Additional Info */}
-                                {(booking.notes || booking.rejectionReason) && (
+                                {(booking.notes ||
+                                  booking.rejectionReason ||
+                                  booking.updatedBy) && (
                                   <div className="lg:col-span-full mt-3 pt-3 border-t border-gray-100">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       {booking.notes && (
@@ -709,6 +711,37 @@ const AdminBookings = () => {
                                         </div>
                                       )}
                                     </div>
+
+                                    {/* Last Updated Info */}
+                                    {booking.updatedBy && (
+                                      <div className="mt-3 pt-3 border-t border-gray-100">
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                          <User className="w-3 h-3" />
+                                          <span>
+                                            Last updated by{" "}
+                                            {booking.updatedBy.first_name}{" "}
+                                            {booking.updatedBy.last_name}(
+                                            {booking.updatedBy.roles === "admin"
+                                              ? "Administrator"
+                                              : "Staff"}
+                                            )
+                                            {booking.updatedAt && (
+                                              <>
+                                                {" "}
+                                                on{" "}
+                                                {new Date(
+                                                  booking.updatedAt
+                                                ).toLocaleDateString()}{" "}
+                                                at{" "}
+                                                {new Date(
+                                                  booking.updatedAt
+                                                ).toLocaleTimeString()}
+                                              </>
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>

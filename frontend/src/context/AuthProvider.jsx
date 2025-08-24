@@ -239,6 +239,8 @@ export function AuthProvider({ children }) {
     updateUserData, // Add the new function
     forceUpdateTrigger, // Add this to trigger re-renders
     isAdmin: auth.role === "admin",
+    isStaff: auth.role === "staff",
+    isAdminOrStaff: auth.role === "admin" || auth.role === "staff",
     isCustomer: auth.role === "customer",
   };
 

@@ -22,6 +22,7 @@ import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
 import UserManagement from "./pages/admin/dashboard/UserManagement.jsx";
 import AdminBookings from "./pages/admin/dashboard/AdminBookings.jsx";
+import StaffManagement from "./pages/admin/dashboard/StaffManagement.jsx";
 import AdminSidebar from "./components/AdminSidebar.jsx";
 
 const router = createBrowserRouter([
@@ -81,6 +82,14 @@ const router = createBrowserRouter([
         element: (
           <AdminSidebar>
             <AdminBookings />
+          </AdminSidebar>
+        ),
+      },
+      {
+        path: "/admin/staff",
+        element: (
+          <AdminSidebar>
+            <StaffManagement />
           </AdminSidebar>
         ),
       },

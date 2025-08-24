@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema({
   roles: {
     type: String,
     required: true,
-    enum: ["customer", "admin"],
+    enum: ["customer", "admin", "staff"],
     default: "customer",
   },
   isGoogleUser: {

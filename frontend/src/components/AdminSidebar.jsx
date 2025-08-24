@@ -73,6 +73,17 @@ const AdminSidebar = ({ children }) => {
       path: "/admin/bookings",
       tooltip: "Manage Bookings",
     },
+    // Show Staff Management only for admin role
+    ...(currentAdmin?.roles === "admin"
+      ? [
+          {
+            icon: Shield,
+            label: "Staff Management",
+            path: "/admin/staff",
+            tooltip: "Manage Staff",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -98,7 +109,7 @@ const AdminSidebar = ({ children }) => {
               </div>
               <div className="group-data-[collapsible=icon]:hidden text-center">
                 <h1 className="text-lg font-black text-red-700">
-                  WashUp Admin
+                  WashUp {currentAdmin?.roles === "admin" ? "Admin" : "Staff"}
                 </h1>
                 <p className="text-xs text-slate-500">Management Portal</p>
               </div>
@@ -164,7 +175,9 @@ const AdminSidebar = ({ children }) => {
                       {fullName}
                     </p>
                     <p className="text-xs text-red-600 truncate">
-                      Administrator
+                      {currentAdmin?.roles === "admin"
+                        ? "Administrator"
+                        : "Staff"}
                     </p>
                   </div>
 
@@ -181,7 +194,11 @@ const AdminSidebar = ({ children }) => {
                   <p className="text-sm font-medium text-slate-900">
                     {fullName}
                   </p>
-                  <p className="text-xs text-red-600">Administrator</p>
+                  <p className="text-xs text-red-600">
+                    {currentAdmin?.roles === "admin"
+                      ? "Administrator"
+                      : "Staff"}
+                  </p>
                   <p className="text-xs text-slate-500">{userEmail}</p>
                 </div>
                 <DropdownMenuSeparator className="bg-slate-100" />

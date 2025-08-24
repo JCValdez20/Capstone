@@ -493,3 +493,175 @@ exports.resendVerificationEmail = async (req, res) => {
     return send.sendErrorMessage(res, 500, error);
   }
 };
+
+// Admin only: Create staff account
+exports.createStaffAccount = async (req, res) => {
+  try {
+    const { first_name, last_name, email, password } = req.body;
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    // Hash password
+    const hashedPassword = await argon2.hash(password);
+
+    // Create staff user
+    const staffUser = new User({
+      first_name,
+      last_name,
+      email,
+      password: hashedPassword,
+      roles: "staff",
+      isVerified: true, // Staff accounts are pre-verified
+    });
+
+    await staffUser.save();
+
+    // Send welcome email to staff
+    const emailResult = await EmailService.sendStaffWelcomeEmail(
+      email,
+      first_name,
+      password // Send temporary password
+    );
+
+    return res.status(201).json({
+      message: "Staff account created successfully",
+      staff: {
+        id: staffUser._id,
+        first_name: staffUser.first_name,
+        last_name: staffUser.last_name,
+        email: staffUser.email,
+        roles: staffUser.roles,
+        isVerified: staffUser.isVerified,
+      },
+      emailSent: emailResult.success,
+    });
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Admin only: Get all staff accounts
+exports.getAllStaff = async (req, res) => {
+  try {
+    const staffMembers = await User.find({ roles: "staff" })
+      .select("-password -verificationToken -verificationTokenExpires")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      message: "Staff members retrieved successfully",
+      staff: staffMembers,
+      total: staffMembers.length,
+    });
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Admin only: Update staff account
+exports.updateStaffAccount = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const { first_name, last_name, email, isActive } = req.body;
+
+    const staff = await User.findById(staffId);
+    if (!staff || staff.roles !== "staff") {
+      return res.status(404).json({ message: "Staff member not found" });
+    }
+
+    // Check if email is being changed and if it's already in use
+    if (email && email !== staff.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+
+    // Update staff data
+    const updateData = {};
+    if (first_name) updateData.first_name = first_name;
+    if (last_name) updateData.last_name = last_name;
+    if (email) updateData.email = email;
+    if (typeof isActive === "boolean") updateData.isActive = isActive;
+
+    const updatedStaff = await User.findByIdAndUpdate(staffId, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password -verificationToken -verificationTokenExpires");
+
+    return res.status(200).json({
+      message: "Staff account updated successfully",
+      staff: updatedStaff,
+    });
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Admin only: Delete staff account
+exports.deleteStaffAccount = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    const staff = await User.findById(staffId);
+    if (!staff || staff.roles !== "staff") {
+      return res.status(404).json({ message: "Staff member not found" });
+    }
+
+    await User.findByIdAndDelete(staffId);
+
+    return res.status(200).json({
+      message: "Staff account deleted successfully",
+      deletedStaff: {
+        id: staff._id,
+        first_name: staff.first_name,
+        last_name: staff.last_name,
+        email: staff.email,
+      },
+    });
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Admin only: Reset staff password
+exports.resetStaffPassword = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters long",
+      });
+    }
+
+    const staff = await User.findById(staffId);
+    if (!staff || staff.roles !== "staff") {
+      return res.status(404).json({ message: "Staff member not found" });
+    }
+
+    // Hash new password
+    const hashedPassword = await argon2.hash(newPassword);
+
+    staff.password = hashedPassword;
+    await staff.save();
+
+    // Send email notification
+    const emailResult = await EmailService.sendPasswordResetNotification(
+      staff.email,
+      staff.first_name,
+      newPassword
+    );
+
+    return res.status(200).json({
+      message: "Staff password reset successfully",
+      emailSent: emailResult.success,
+    });
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
