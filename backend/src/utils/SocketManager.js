@@ -188,16 +188,7 @@ class SocketManager {
   }
 
   emitToConversation(conversationId, event, data) {
-    console.log(
-      `📤 Emitting ${event} to conversation_${conversationId}:`,
-      data
-    );
     const roomName = `conversation_${conversationId}`;
-    const socketsInRoom = this.io.sockets.adapter.rooms.get(roomName);
-    console.log(
-      `👥 Sockets in room ${roomName}:`,
-      socketsInRoom ? Array.from(socketsInRoom) : "No sockets"
-    );
     this.io.to(roomName).emit(event, data);
   }
 

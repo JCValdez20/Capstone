@@ -6,6 +6,74 @@ const User = require("../models/User");
 const Booking = require("../models/Booking");
 const socketManager = require("../utils/SocketManager");
 
+// Test endpoint to initialize conversations for existing bookings
+router.get("/init-conversations", async (req, res) => {
+  try {
+    // Find all bookings
+    const bookings = await Booking.find({}).populate(
+      "user",
+      "first_name last_name email roles"
+    );
+
+    // Find existing conversations
+    const existingConversations = await Conversation.find({
+      conversationType: "booking",
+    }).distinct("relatedBooking");
+
+    const bookingsWithoutConversations = bookings.filter(
+      (booking) =>
+        !existingConversations.some(
+          (conv) => conv.toString() === booking._id.toString()
+        )
+    );
+
+    let createdCount = 0;
+    let errorCount = 0;
+
+    for (const booking of bookingsWithoutConversations) {
+      try {
+        const conversation = new Conversation({
+          participants: [
+            {
+              user: booking.user._id,
+              role: "customer",
+            },
+          ],
+          relatedBooking: booking._id,
+          conversationType: "booking",
+          status: "active",
+        });
+
+        await conversation.save();
+        createdCount++;
+        console.log(`✅ Conversation created for booking ${booking._id}`);
+      } catch (conversationError) {
+        errorCount++;
+        console.error(
+          `❌ Failed to create conversation for booking ${booking._id}:`,
+          conversationError
+        );
+      }
+    }
+
+    return res.json({
+      success: true,
+      totalBookings: bookings.length,
+      existingConversations: existingConversations.length,
+      bookingsWithoutConversations: bookingsWithoutConversations.length,
+      conversationsCreated: createdCount,
+      errors: errorCount,
+      message: `Initialized ${createdCount} conversations for existing bookings`,
+    });
+  } catch (error) {
+    console.error("Error initializing conversations:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 // Test endpoint to create a sample conversation and message
 router.post("/test-messaging", async (req, res) => {
   try {

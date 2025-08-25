@@ -16,49 +16,30 @@ class MessagingController {
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
-      // Debug: Log conversation participants data
-      console.log(
-        "📤 SENDING CONVERSATIONS:",
-        conversations.slice(0, 1).map((conv) => ({
-          id: conv._id,
-          participants: conv.participants.map((p) => ({
-            userId: p.user?._id,
-            userEmail: p.user?.email,
-            userName: `${p.user?.first_name} ${p.user?.last_name}`,
-            userRoles: p.user?.roles,
-            participantRole: p.role,
-          })),
-        }))
+      // Filter out conversations with invalid participants
+      const validConversations = conversations.filter(
+        (conv) =>
+          conv.participants &&
+          conv.participants.length > 0 &&
+          conv.participants.every((p) => p.user && p.user._id)
       );
 
       // Get unread counts for each conversation
       const conversationsWithUnread = await Promise.all(
-        conversations.map(async (conv) => {
+        validConversations.map(async (conv) => {
           const unreadCount = await Messages.getUnreadCount(conv._id, userId);
           return {
             ...conv.toObject(),
             unreadCount: unreadCount,
             isOnline: conv.participants.some(
               (p) =>
+                p.user &&
+                p.user._id &&
                 p.user._id.toString() !== userId &&
                 socketManager.isUserOnline(p.user._id)
             ),
           };
         })
-      );
-
-      // Debug: Log conversation data being sent
-      console.log(
-        "📤 SENDING CONVERSATIONS:",
-        conversationsWithUnread.map((conv) => ({
-          id: conv._id,
-          participants: conv.participants?.map((p) => ({
-            userId: p.user?._id,
-            userName: `${p.user?.first_name} ${p.user?.last_name}`,
-            role: p.role,
-            userObject: p.user ? "EXISTS" : "MISSING",
-          })),
-        }))
       );
 
       return send.sendResponseMessage(
@@ -69,7 +50,7 @@ class MessagingController {
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
-            total: conversations.length,
+            total: validConversations.length,
           },
         },
         "Conversations fetched successfully"
@@ -291,19 +272,6 @@ class MessagingController {
         parseInt(limit)
       );
 
-      // Debug: Log message sender data
-      console.log(
-        "📤 SENDING MESSAGES:",
-        messages.slice(0, 3).map((msg) => ({
-          id: msg._id,
-          content: msg.content.substring(0, 30) + "...",
-          senderId: msg.sender?._id,
-          senderName: `${msg.sender?.first_name} ${msg.sender?.last_name}`,
-          senderRole: msg.sender?.roles,
-          senderExists: !!msg.sender,
-        }))
-      );
-
       // Mark messages as read
       await Messages.markAllAsReadByUser(conversationId, userId);
 
@@ -396,9 +364,6 @@ class MessagingController {
       await conversation.save();
 
       // Emit to all participants in the conversation room via socket
-      console.log(
-        `📤 Emitting new_message to conversation room: conversation_${conversationId}`
-      );
       socketManager.emitToConversation(conversationId, "new_message", {
         conversationId,
         message: message.toObject(),

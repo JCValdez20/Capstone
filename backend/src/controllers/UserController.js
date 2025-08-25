@@ -26,9 +26,19 @@ exports.userLogin = async (req, res) => {
       });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      {
+        id: user._id,
+        email: user.email,
+        roles: user.roles,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      },
+      process.env.SECRET_KEY,
+      {
+        expiresIn: "1h",
+      }
+    );
 
     // Return ALL user data from database (excluding password)
     return res.status(200).json({
@@ -62,11 +72,9 @@ exports.adminLogin = async (req, res) => {
 
     // Check if user is an admin or staff
     if (user.roles !== "admin" && user.roles !== "staff") {
-      return res
-        .status(403)
-        .json({
-          message: "Access denied. Admin or Staff privileges required.",
-        });
+      return res.status(403).json({
+        message: "Access denied. Admin or Staff privileges required.",
+      });
     }
 
     if (!(await argon2.verify(user.password, password))) {
@@ -78,6 +86,8 @@ exports.adminLogin = async (req, res) => {
         id: user._id,
         email: user.email,
         roles: user.roles,
+        first_name: user.first_name,
+        last_name: user.last_name,
       },
       process.env.SECRET_KEY,
       {

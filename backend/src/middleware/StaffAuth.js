@@ -19,7 +19,10 @@ const StaffAuth = async (req, res, next) => {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || process.env.SECRET_KEY
+      );
       const user = await User.findById(decoded.userId).select("-password");
 
       if (!user) {
@@ -35,9 +38,11 @@ const StaffAuth = async (req, res, next) => {
         );
       }
 
-      req.user = {
+      req.userData = {
+        id: user._id,
         userId: user._id,
         email: user.email,
+        roles: user.roles,
         role: user.roles,
         first_name: user.first_name,
         last_name: user.last_name,

@@ -26,8 +26,22 @@ module.exports = (req, res, next) => {
       return send.sendErrorMessage(res, 401, new Error("No token provided"));
     }
 
-    const decoded = jwt.verify(token, process.env.SECRET_KEY);
-    req.userData = decoded;
+    // Use JWT_SECRET to be consistent with other middleware
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || process.env.SECRET_KEY
+    );
+
+    // Standardize user data format across all middleware
+    req.userData = {
+      id: decoded.id,
+      userId: decoded.id, // Provide both for compatibility
+      email: decoded.email,
+      roles: decoded.roles,
+      role: decoded.roles,
+      first_name: decoded.first_name,
+      last_name: decoded.last_name,
+    };
 
     next();
   } catch (error) {

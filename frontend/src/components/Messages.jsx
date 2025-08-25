@@ -34,11 +34,14 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import messagingService from "@/services/messagingService";
+import adminMessagingService from "@/services/adminMessagingService";
+import staffMessagingService from "@/services/staffMessagingService";
 import socketService from "@/services/socketService";
 import { useAuth } from "@/hooks/useAuth";
 
 const Messages = () => {
   const { user, isAdmin, isStaff } = useAuth();
+
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -49,6 +52,17 @@ const Messages = () => {
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Get the appropriate messaging service based on user role
+  const getMessagingService = useCallback(() => {
+    if (isAdmin) {
+      return adminMessagingService;
+    } else if (isStaff) {
+      return staffMessagingService;
+    } else {
+      return messagingService;
+    }
+  }, [isAdmin, isStaff]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -56,19 +70,7 @@ const Messages = () => {
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await messagingService.getConversations();
-      console.log("🔍 CONVERSATIONS LOADED:", {
-        total: response.data?.conversations?.length || 0,
-        conversations: response.data?.conversations?.map((conv) => ({
-          id: conv._id,
-          participants: conv.participants?.map((p) => ({
-            userId: p.user?._id,
-            userName: `${p.user?.first_name} ${p.user?.last_name}`,
-            role: p.roles,
-          })),
-          title: conv.title,
-        })),
-      });
+      const response = await getMessagingService().getConversations();
       setConversations(response.data?.conversations || []);
     } catch (error) {
       console.error("Error loading conversations:", error);
@@ -76,33 +78,32 @@ const Messages = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getMessagingService]);
 
-  const loadStaffAdminUsers = async () => {
+  const loadStaffAdminUsers = useCallback(async () => {
     try {
-      const response = await messagingService.getStaffAndAdminUsers();
+      const response = await getMessagingService().getStaffAndAdminUsers();
       setStaffAdminUsers(response.data?.users || []);
     } catch (error) {
       console.error("Error loading staff/admin users:", error);
     }
-  };
+  }, [getMessagingService]);
 
   const loadMessages = useCallback(
     async (conversationId) => {
       try {
-        const response = await messagingService.getMessages(conversationId);
-        console.log("Messages response:", response);
-        console.log("Messages data:", response.data?.messages);
-        console.log("Current user:", user);
+        const response = await getMessagingService().getMessages(
+          conversationId
+        );
         setMessages(response.data?.messages || []);
         // Mark as read
-        await messagingService.markAsRead(conversationId);
+        await getMessagingService().markAsRead(conversationId);
       } catch (error) {
         console.error("Error loading messages:", error);
         toast.error("Failed to load messages");
       }
     },
-    [user]
+    [user, getMessagingService]
   );
 
   useEffect(() => {
@@ -110,7 +111,7 @@ const Messages = () => {
     if (isAdmin || isStaff) {
       loadStaffAdminUsers();
     }
-  }, [isAdmin, isStaff, loadConversations]);
+  }, [isAdmin, isStaff, loadConversations, loadStaffAdminUsers]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -126,12 +127,8 @@ const Messages = () => {
   useEffect(() => {
     // Ensure socket is connected when component mounts
     const token = localStorage.getItem("token");
-    console.log("🔍 Messages component socket check:");
-    console.log("  Token exists:", !!token);
-    console.log("  Socket connected:", socketService.isConnected());
 
     if (token && !socketService.isConnected()) {
-      console.log("🔌 Connecting to Socket.IO from Messages component...");
       try {
         socketService.connect(token);
       } catch (error) {
@@ -144,12 +141,10 @@ const Messages = () => {
     // Join the selected conversation room
     if (selectedConversation && socketService.isConnected()) {
       socketService.joinConversation(selectedConversation._id);
-      console.log("👥 Joined conversation room:", selectedConversation._id);
 
       // Clean up when conversation changes
       return () => {
         socketService.leaveConversation(selectedConversation._id);
-        console.log("👋 Left conversation room:", selectedConversation._id);
       };
     }
   }, [selectedConversation]);
@@ -157,7 +152,6 @@ const Messages = () => {
   useEffect(() => {
     // Listen for new messages from Socket.IO
     const handleNewMessage = (data) => {
-      console.log("📩 Received new message via socket:", data);
       if (data.conversationId === selectedConversation?._id) {
         // Add the new message to the current conversation
         setMessages((prev) => {
@@ -166,10 +160,8 @@ const Messages = () => {
             (msg) => msg._id === data.message._id
           );
           if (!messageExists) {
-            console.log("Adding new message to conversation");
             return [...prev, data.message];
           }
-          console.log("Message already exists, skipping");
           return prev;
         });
         setTimeout(scrollToBottom, 100);
@@ -179,7 +171,6 @@ const Messages = () => {
     };
 
     const handleNewMessageFromUser = (data) => {
-      console.log("📩 Received new-message from user via socket:", data);
       if (data.conversationId === selectedConversation?._id) {
         // Add the new message to the current conversation
         setMessages((prev) => {
@@ -188,10 +179,8 @@ const Messages = () => {
             (msg) => msg._id === data.message._id
           );
           if (!messageExists) {
-            console.log("Adding new message from user to conversation");
             return [...prev, data.message];
           }
-          console.log("Message from user already exists, skipping");
           return prev;
         });
         setTimeout(scrollToBottom, 100);
@@ -216,7 +205,6 @@ const Messages = () => {
     if (!selectedConversation) return;
 
     const interval = setInterval(() => {
-      console.log("Auto-refreshing messages for real-time updates");
       loadMessages(selectedConversation._id);
     }, 5000);
 
@@ -229,7 +217,7 @@ const Messages = () => {
 
     try {
       setSendingMessage(true);
-      await messagingService.sendMessage(
+      await getMessagingService().sendMessage(
         selectedConversation._id,
         newMessage.trim()
       );
@@ -248,7 +236,7 @@ const Messages = () => {
 
   const handleStartDirectConversation = async (targetUserId) => {
     try {
-      const response = await messagingService.getDirectConversation(
+      const response = await getMessagingService().getDirectConversation(
         targetUserId
       );
       const conversation = response.data?.conversation;
@@ -505,18 +493,6 @@ const Messages = () => {
                         const otherParticipant =
                           getOtherParticipant(selectedConversation);
 
-                        // Debug conversation participants
-                        console.log("🔍 CONVERSATION DEBUG:", {
-                          conversationId: selectedConversation._id,
-                          participants: selectedConversation.participants,
-                          currentUser: {
-                            id: user?.id,
-                            _id: user?._id,
-                            name: `${user?.first_name} ${user?.last_name}`,
-                          },
-                          otherParticipant: otherParticipant,
-                        });
-
                         return (
                           <>
                             <Badge
@@ -568,59 +544,23 @@ const Messages = () => {
                         (message) => message && message.sender && message._id
                       )
                       .map((message) => {
-                        // Get user ID - handle different formats
+                        // Get user ID - handle different formats and ensure proper comparison
                         const currentUserId = user?.id || user?._id;
-                        const senderId = message.sender?._id;
+                        const senderId =
+                          message.sender?._id || message.sender?.id;
 
-                        // Convert both to strings for comparison
+                        // Convert both to strings for comparison and log for debugging
                         const isOwn =
                           currentUserId?.toString() === senderId?.toString();
 
-                        // Get sender name and role for display
+                        // Get sender info
                         const senderName = `${
                           message.sender?.first_name || "Unknown"
                         } ${message.sender?.last_name || "User"}`;
-                        const senderRole = message.sender?.roles || "customer";
-
-                        // For testing - if same user, differentiate by current user role
-                        const isTestingMode = true; // Change to false in production
-                        let effectiveRole = senderRole;
-                        let effectiveName = senderName;
-
-                        if (isTestingMode && isOwn) {
-                          // If it's our own message, use current user's role and name
-                          effectiveRole = user?.roles || "customer";
-                          effectiveName =
-                            user?.first_name && user?.last_name
-                              ? `${user.first_name} ${user.last_name}`
-                              : senderName;
-                        }
-
-                        // Enhanced debugging - show for all messages to identify the issue
-                        const messageIndex = messages.indexOf(message);
-                        if (messageIndex < 5) {
-                          // Debug first 5 messages
-                          console.log(`🔍 Message ${messageIndex + 1}:`, {
-                            messageId: message._id,
-                            currentUser: {
-                              id: user?.id,
-                              _id: user?._id,
-                              finalId: currentUserId,
-                              name: `${user?.first_name} ${user?.last_name}`,
-                              role: user?.roles,
-                            },
-                            sender: {
-                              id: senderId,
-                              name: effectiveName,
-                              role: effectiveRole,
-                              firstName: message.sender?.first_name,
-                              lastName: message.sender?.last_name,
-                              fullObject: message.sender,
-                            },
-                            isOwn: isOwn,
-                            content: message.content.substring(0, 50) + "...",
-                          });
-                        }
+                        const senderRole =
+                          message.sender?.roles ||
+                          message.sender?.role ||
+                          "customer";
 
                         return (
                           <div
@@ -645,16 +585,16 @@ const Messages = () => {
                                 <span>
                                   {isOwn
                                     ? "You"
-                                    : effectiveRole === "admin"
+                                    : senderRole === "admin"
                                     ? `Admin: ${
-                                        effectiveName.split(" ")[0] || "Unknown"
+                                        senderName.split(" ")[0] || "Unknown"
                                       }`
-                                    : effectiveRole === "staff"
+                                    : senderRole === "staff"
                                     ? `Staff: ${
-                                        effectiveName.split(" ")[0] || "Unknown"
+                                        senderName.split(" ")[0] || "Unknown"
                                       }`
                                     : `Customer: ${
-                                        effectiveName.split(" ")[0] || "Unknown"
+                                        senderName.split(" ")[0] || "Unknown"
                                       }`}
                                 </span>
                                 <span>

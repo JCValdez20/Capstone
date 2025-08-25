@@ -139,10 +139,17 @@ conversationSchema.statics.findByUser = function (userId, status = "active") {
     "participants.user": userId,
     status: status,
   })
-    .populate("participants.user", "first_name last_name email roles")
+    .populate({
+      path: "participants.user",
+      select: "first_name last_name email roles",
+      match: { _id: { $ne: null } }, // Only populate non-null users
+    })
     .populate("relatedBooking", "service date timeSlot status")
     .populate("lastMessage.sender", "first_name last_name")
-    .sort({ "lastMessage.timestamp": -1 });
+    .sort({
+      updatedAt: -1, // Use updatedAt which always exists
+      createdAt: -1, // Fallback to creation date
+    });
 };
 
 module.exports = mongoose.model("Conversation", conversationSchema);

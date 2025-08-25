@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const User = require("../models/User"); // Import User model to ensure it's registered
+const Conversation = require("../models/Conversation"); // Import Conversation model
 const send = require("../utils/Response");
 
 // Helper function to update timestamps
@@ -174,6 +175,30 @@ exports.createBooking = async (req, res) => {
     });
 
     const booking = await Booking.create(bookingData);
+
+    // Automatically create a conversation for the booking
+    try {
+      const conversation = new Conversation({
+        participants: [
+          {
+            user: userId,
+            role: "customer",
+          },
+        ],
+        relatedBooking: booking._id,
+        conversationType: "booking",
+        status: "active",
+      });
+
+      await conversation.save();
+      console.log(`✅ Conversation created for booking ${booking._id}`);
+    } catch (conversationError) {
+      // Don't fail the booking if conversation creation fails
+      console.error(
+        "⚠️ Failed to create conversation for booking:",
+        conversationError
+      );
+    }
 
     return send.sendResponseMessage(
       res,
@@ -497,6 +522,68 @@ exports.updateBooking = async (req, res) => {
       200,
       updatedBooking,
       "Booking updated successfully"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Initialize conversations for existing bookings (Utility endpoint)
+exports.initializeConversations = async (req, res) => {
+  try {
+    // Find all bookings that don't have conversations
+    const bookings = await Booking.find({}).populate(
+      "user",
+      "first_name last_name email roles"
+    );
+
+    const existingConversations = await Conversation.find({
+      conversationType: "booking",
+    }).distinct("relatedBooking");
+
+    const bookingsWithoutConversations = bookings.filter(
+      (booking) => !existingConversations.includes(booking._id.toString())
+    );
+
+    let createdCount = 0;
+    let errorCount = 0;
+
+    for (const booking of bookingsWithoutConversations) {
+      try {
+        const conversation = new Conversation({
+          participants: [
+            {
+              user: booking.user._id,
+              role: "customer",
+            },
+          ],
+          relatedBooking: booking._id,
+          conversationType: "booking",
+          status: "active",
+        });
+
+        await conversation.save();
+        createdCount++;
+        console.log(`✅ Conversation created for booking ${booking._id}`);
+      } catch (conversationError) {
+        errorCount++;
+        console.error(
+          `❌ Failed to create conversation for booking ${booking._id}:`,
+          conversationError
+        );
+      }
+    }
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      {
+        totalBookings: bookings.length,
+        bookingsWithoutConversations: bookingsWithoutConversations.length,
+        conversationsCreated: createdCount,
+        errors: errorCount,
+      },
+      `Initialized ${createdCount} conversations for existing bookings`
     );
   } catch (error) {
     return send.sendErrorMessage(res, 500, error);
