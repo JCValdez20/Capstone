@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AuthContext from "./AuthContext";
 import axios from "../services/axios";
+import socketService from "../services/socketService";
 
 const initialAuthState = {
   user: null,
@@ -53,6 +54,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
+      // Disconnect socket before logout
+      socketService.disconnect();
+
       // Clear frontend auth state first
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -102,6 +106,12 @@ export function AuthProvider({ children }) {
           isLoading: false,
           error: null,
         });
+
+        // Connect socket for existing session
+        const token = localStorage.getItem("token");
+        if (token) {
+          socketService.connect(token);
+        }
 
         // Trigger initial render
         setForceUpdateTrigger((prev) => prev + 1);
@@ -153,6 +163,12 @@ export function AuthProvider({ children }) {
       };
 
       setAuth(newAuthState);
+
+      // Connect socket after successful login
+      const token = localStorage.getItem("token");
+      if (token) {
+        socketService.connect(token);
+      }
 
       // Also trigger the force update to ensure UI updates
       setForceUpdateTrigger((prev) => prev + 1);

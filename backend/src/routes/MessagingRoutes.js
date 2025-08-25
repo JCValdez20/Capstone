@@ -13,6 +13,20 @@ router.get(
   MessagingController.getOrCreateConversation
 );
 
+// Get or create a direct conversation between admin/staff users
+router.get(
+  "/conversations/direct/:targetUserId",
+  UserGuard,
+  MessagingController.getOrCreateDirectConversation
+);
+
+// Get all admin/staff users for direct messaging
+router.get(
+  "/staff-admin-users",
+  UserGuard,
+  MessagingController.getStaffAndAdminUsers
+);
+
 // Get messages in a conversation
 router.get(
   "/conversations/:conversationId/messages",

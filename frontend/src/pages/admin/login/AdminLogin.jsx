@@ -31,7 +31,10 @@ const AdminLogin = () => {
     const checkAuthStatus = () => {
       if (adminService.isAuthenticated()) {
         const currentUser = adminService.getCurrentAdmin();
-        const redirectPath = currentUser?.roles === "admin" ? "/admin/dashboard" : "/staff/dashboard";
+        const redirectPath =
+          currentUser?.roles === "admin"
+            ? "/admin/dashboard"
+            : "/staff/dashboard";
         toast.info("Already logged in", {
           description: "Redirecting to dashboard...",
         });
@@ -69,7 +72,8 @@ const AdminLogin = () => {
         setError("Access denied. Admin or Staff privileges required.");
         adminService.logout(); // Clean up any stored data
         toast.error("Access denied", {
-          description: "Admin or Staff privileges required to access this area.",
+          description:
+            "Admin or Staff privileges required to access this area.",
         });
         return;
       }

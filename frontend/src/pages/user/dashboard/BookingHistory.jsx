@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { bookingService } from "../../../services/bookingService";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import BookingChat from "@/components/BookingChat";
 import {
   Calendar,
   Clock,
@@ -14,6 +15,7 @@ import {
   Search,
   ChevronRight,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 
 const BookingHistory = () => {
@@ -23,6 +25,8 @@ const BookingHistory = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Fetch bookings on component mount
   useEffect(() => {
@@ -62,6 +66,16 @@ const BookingHistory = () => {
           err.response?.data?.message || "Please try again or contact support.",
       });
     }
+  };
+
+  const handleOpenChat = (booking) => {
+    setSelectedBooking(booking);
+    setIsChatOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setIsChatOpen(false);
+    setSelectedBooking(null);
   };
 
   const getStatusIcon = (status) => {
@@ -329,7 +343,17 @@ const BookingHistory = () => {
                           </div>
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center justify-end space-x-2">
+                            {/* Message Button */}
+                            <button
+                              onClick={() => handleOpenChat(booking)}
+                              className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200 hover:border-blue-300 flex items-center space-x-1"
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                              <span>Message</span>
+                            </button>
+
+                            {/* Cancel Button */}
                             {(booking.status === "pending" ||
                               booking.status === "confirmed") && (
                               <button
@@ -376,6 +400,13 @@ const BookingHistory = () => {
           </div>
         </>
       )}
+
+      {/* Booking Chat Component */}
+      <BookingChat
+        booking={selectedBooking}
+        isOpen={isChatOpen}
+        onClose={handleCloseChat}
+      />
     </div>
   );
 };

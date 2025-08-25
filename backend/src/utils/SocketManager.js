@@ -23,23 +23,38 @@ class SocketManager {
     this.io.use(async (socket, next) => {
       try {
         const token = socket.handshake.auth.token;
+        console.log(
+          "🔐 Socket authentication attempt with token:",
+          token ? "Present" : "Missing"
+        );
 
         if (!token) {
+          console.log("❌ Socket auth failed: No token provided");
           return next(new Error("Authentication error: No token provided"));
         }
 
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("✅ Socket token decoded:", decoded);
+
         const user = await User.findById(decoded.userId).select("-password");
+        console.log(
+          "👤 Socket user found:",
+          user
+            ? `${user.first_name} ${user.last_name} (${user.role})`
+            : "Not found"
+        );
 
         if (!user) {
+          console.log("❌ Socket auth failed: User not found");
           return next(new Error("Authentication error: User not found"));
         }
 
         socket.user = user;
+        console.log("✅ Socket authentication successful");
         next();
       } catch (error) {
-        console.error("Socket authentication error:", error);
+        console.error("❌ Socket authentication error:", error.message);
         next(new Error("Authentication error: Invalid token"));
       }
     });
@@ -173,7 +188,17 @@ class SocketManager {
   }
 
   emitToConversation(conversationId, event, data) {
-    this.io.to(`conversation_${conversationId}`).emit(event, data);
+    console.log(
+      `📤 Emitting ${event} to conversation_${conversationId}:`,
+      data
+    );
+    const roomName = `conversation_${conversationId}`;
+    const socketsInRoom = this.io.sockets.adapter.rooms.get(roomName);
+    console.log(
+      `👥 Sockets in room ${roomName}:`,
+      socketsInRoom ? Array.from(socketsInRoom) : "No sockets"
+    );
+    this.io.to(roomName).emit(event, data);
   }
 
   emitToAdmins(event, data) {

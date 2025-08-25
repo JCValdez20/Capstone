@@ -22,6 +22,7 @@ import {
   Menu,
   Shield,
   Calendar,
+  MessageCircle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -58,7 +59,10 @@ const AdminSidebar = ({ children }) => {
     {
       icon: Home,
       label: "Dashboard",
-      path: currentAdmin?.roles === "admin" ? "/admin/dashboard" : "/staff/dashboard",
+      path:
+        currentAdmin?.roles === "admin"
+          ? "/admin/dashboard"
+          : "/staff/dashboard",
       tooltip: "Dashboard",
     },
     {
@@ -70,8 +74,16 @@ const AdminSidebar = ({ children }) => {
     {
       icon: Calendar,
       label: "Booking Management",
-      path: currentAdmin?.roles === "admin" ? "/admin/bookings" : "/staff/bookings",
+      path:
+        currentAdmin?.roles === "admin" ? "/admin/bookings" : "/staff/bookings",
       tooltip: "Manage Bookings",
+    },
+    {
+      icon: MessageCircle,
+      label: "Messages",
+      path:
+        currentAdmin?.roles === "admin" ? "/admin/messages" : "/staff/messages",
+      tooltip: "Messages & Chat",
     },
     // Show Staff Management only for admin role
     ...(currentAdmin?.roles === "admin"

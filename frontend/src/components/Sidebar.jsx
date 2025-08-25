@@ -21,6 +21,7 @@ import {
   ChevronDown,
   User,
   Menu,
+  MessageCircle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -64,6 +65,12 @@ const AppSidebar = ({ children }) => {
         label: "Booking History",
         path: "/booking-history",
         tooltip: "Booking History",
+      },
+      {
+        icon: MessageCircle,
+        label: "Messages",
+        path: "/messages",
+        tooltip: "Messages & Chat",
       },
     ],
     []

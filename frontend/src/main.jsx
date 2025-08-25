@@ -27,6 +27,9 @@ import StaffManagement from "./pages/admin/dashboard/StaffManagement.jsx";
 import StaffDashboard from "./pages/staff/dashboard/StaffDashboard.jsx";
 import StaffUserManagement from "./pages/staff/dashboard/StaffUserManagement.jsx";
 import StaffBookings from "./pages/staff/dashboard/StaffBookings.jsx";
+import StaffMessages from "./pages/staff/dashboard/StaffMessages.jsx";
+import AdminMessages from "./pages/admin/dashboard/AdminMessages.jsx";
+import UserMessages from "./pages/user/dashboard/UserMessages.jsx";
 import AdminSidebar from "./components/AdminSidebar.jsx";
 
 const router = createBrowserRouter([
@@ -90,6 +93,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/admin/messages",
+        element: (
+          <AdminSidebar>
+            <AdminMessages />
+          </AdminSidebar>
+        ),
+      },
+      {
         path: "/admin/staff",
         element: (
           <AdminSidebar>
@@ -126,6 +137,14 @@ const router = createBrowserRouter([
           </AdminSidebar>
         ),
       },
+      {
+        path: "/staff/messages",
+        element: (
+          <AdminSidebar>
+            <StaffMessages />
+          </AdminSidebar>
+        ),
+      },
     ],
   },
   {
@@ -144,6 +163,14 @@ const router = createBrowserRouter([
         element: (
           <AppSidebar>
             <BookingHistory />
+          </AppSidebar>
+        ),
+      },
+      {
+        path: "/messages",
+        element: (
+          <AppSidebar>
+            <UserMessages />
           </AppSidebar>
         ),
       },

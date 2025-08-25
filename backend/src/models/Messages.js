@@ -261,19 +261,18 @@ messageSchema.statics.findByConversation = function (
   }
 
   const messagesQuery = this.find(query)
-    .populate("sender", "first_name last_name email role profilePic")
+    .populate("sender", "first_name last_name email roles profilePic")
     .populate({
       path: "replyTo",
       select: "content sender createdAt messageType",
       populate: {
         path: "sender",
-        select: "first_name last_name",
+        select: "first_name last_name roles",
       },
     })
     .sort({ createdAt: -1 })
     .limit(limit * 1)
-    .skip((page - 1) * limit)
-    .lean({ virtuals: true }); // Use lean for better performance
+    .skip((page - 1) * limit);
 
   return messagesQuery;
 };

@@ -109,4 +109,93 @@ router.get("/socket-status", (req, res) => {
   });
 });
 
+// Test endpoint to fix existing messages by alternating senders
+router.post("/fix-message-senders", async (req, res) => {
+  try {
+    const conversationId = "68ac23540f4fb0a113ccb832";
+    const customerUserId = "689a7da68190b7c82459feb7";
+
+    // Find or create a staff user
+    let staffUser = await User.findOne({ roles: "staff" });
+    if (!staffUser) {
+      const bcrypt = require("bcrypt");
+      const hashedPassword = await bcrypt.hash("password123", 10);
+
+      staffUser = new User({
+        first_name: "Jane",
+        last_name: "Smith",
+        email: "staff@washup.com",
+        password: hashedPassword,
+        roles: "staff",
+        isVerified: true,
+      });
+      await staffUser.save();
+    }
+
+    // Get all messages in the conversation
+    const messages = await Messages.find({ conversation: conversationId }).sort(
+      { createdAt: 1 }
+    );
+
+    if (messages.length === 0) {
+      return res.json({
+        success: false,
+        message: "No messages found in conversation",
+      });
+    }
+
+    // Alternate senders - customer first, then staff, then customer, etc.
+    let updateCount = 0;
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
+      const shouldBeCustomer = i % 2 === 0; // Even index = customer, odd index = staff
+      const expectedSender = shouldBeCustomer
+        ? customerUserId
+        : staffUser._id.toString();
+
+      if (message.sender.toString() !== expectedSender) {
+        await Messages.findByIdAndUpdate(message._id, {
+          sender: expectedSender,
+        });
+        updateCount++;
+      }
+    }
+
+    // Update conversation participants to include staff if not already there
+    const conversation = await Conversation.findById(conversationId);
+    const isStaffInConversation = conversation.participants.some(
+      (p) =>
+        (p.user ? p.user.toString() : p.toString()) === staffUser._id.toString()
+    );
+
+    if (!isStaffInConversation) {
+      conversation.participants.push({
+        user: staffUser._id,
+        role: staffUser.roles,
+        joinedAt: new Date(),
+      });
+      await conversation.save();
+    }
+
+    return res.json({
+      success: true,
+      message: `Fixed ${updateCount} messages to alternate between customer and staff`,
+      data: {
+        totalMessages: messages.length,
+        updatedMessages: updateCount,
+        customerUser: customerUserId,
+        staffUser: staffUser._id,
+        conversationUpdated: !isStaffInConversation,
+      },
+    });
+  } catch (error) {
+    console.error("Fix message senders error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fix message senders",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

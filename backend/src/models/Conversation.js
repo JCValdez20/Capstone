@@ -11,7 +11,7 @@ const conversationSchema = new mongoose.Schema({
       },
       role: {
         type: String,
-        enum: ["customer", "admin"],
+        enum: ["customer", "admin", "staff"],
         required: true,
       },
       joinedAt: {
@@ -21,11 +21,18 @@ const conversationSchema = new mongoose.Schema({
     },
   ],
 
-  // Related Booking (conversation context)
+  // Related Booking (conversation context) - Optional for direct conversations
   relatedBooking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Booking",
-    required: true,
+    required: false,
+  },
+
+  // Conversation Type
+  conversationType: {
+    type: String,
+    enum: ["booking", "direct"],
+    default: "booking",
   },
 
   // Conversation Status
@@ -132,7 +139,7 @@ conversationSchema.statics.findByUser = function (userId, status = "active") {
     "participants.user": userId,
     status: status,
   })
-    .populate("participants.user", "first_name last_name email role")
+    .populate("participants.user", "first_name last_name email roles")
     .populate("relatedBooking", "service date timeSlot status")
     .populate("lastMessage.sender", "first_name last_name")
     .sort({ "lastMessage.timestamp": -1 });

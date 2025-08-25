@@ -72,7 +72,7 @@ const StaffManagement = () => {
     try {
       setLoading(true);
       const response = await adminService.getAllStaff();
-      console.log('Staff API Response:', response); // Debug log
+      console.log("Staff API Response:", response); // Debug log
       setStaffMembers(response.staff || response.data?.staff || []);
     } catch (error) {
       console.error("Error fetching staff:", error);
@@ -409,7 +409,7 @@ const StaffManagement = () => {
                         staff.createdAt &&
                         !isNaN(new Date(staff.createdAt)) &&
                         new Date(staff.createdAt) >
-                        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
                     ).length
                   }
                 </p>
@@ -483,10 +483,9 @@ const StaffManagement = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {staff.createdAt && !isNaN(new Date(staff.createdAt)) 
+                      {staff.createdAt && !isNaN(new Date(staff.createdAt))
                         ? format(new Date(staff.createdAt), "MMM dd, yyyy")
-                        : "N/A"
-                      }
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">

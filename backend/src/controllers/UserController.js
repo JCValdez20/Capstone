@@ -64,7 +64,9 @@ exports.adminLogin = async (req, res) => {
     if (user.roles !== "admin" && user.roles !== "staff") {
       return res
         .status(403)
-        .json({ message: "Access denied. Admin or Staff privileges required." });
+        .json({
+          message: "Access denied. Admin or Staff privileges required.",
+        });
     }
 
     if (!(await argon2.verify(user.password, password))) {
