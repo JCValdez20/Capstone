@@ -34,8 +34,6 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import messagingService from "@/services/messagingService";
-import adminMessagingService from "@/services/adminMessagingService";
-import staffMessagingService from "@/services/staffMessagingService";
 import socketService from "@/services/socketService";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -52,16 +50,36 @@ const Messages = () => {
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Helper function to get current user context - SIMPLIFIED
+  const getCurrentUserContext = useCallback(() => {
+    const currentPath = window.location.pathname;
+    
+    // SIMPLE: If on admin/staff interface, use admin user
+    if (currentPath.includes('/admin') || currentPath.includes('/staff')) {
+      const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+      return {
+        id: adminUser.id || adminUser._id,
+        role: adminUser.roles || "staff",
+        name: `${adminUser.first_name} ${adminUser.last_name}`,
+        isAdminInterface: true
+      };
+    } else {
+      // Customer interface
+      const regularUser = JSON.parse(localStorage.getItem("user") || "{}");
+      return {
+        id: regularUser.id || regularUser._id,
+        role: regularUser.role || "customer", 
+        name: regularUser.name || `${regularUser.first_name} ${regularUser.last_name}`,
+        isAdminInterface: false
+      };
+    }
+  }, []);
+
   // Get the appropriate messaging service based on user role
   const getMessagingService = useCallback(() => {
-    if (isAdmin) {
-      return adminMessagingService;
-    } else if (isStaff) {
-      return staffMessagingService;
-    } else {
-      return messagingService;
-    }
-  }, [isAdmin, isStaff]);
+    // Now all roles use the unified messaging service
+    return messagingService;
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -103,7 +121,7 @@ const Messages = () => {
         toast.error("Failed to load messages");
       }
     },
-    [user, getMessagingService]
+    [getMessagingService]
   );
 
   useEffect(() => {
@@ -200,16 +218,16 @@ const Messages = () => {
     };
   }, [selectedConversation, loadConversations]);
 
-  // Fallback: Auto-refresh messages every 5 seconds for real-time feel
-  useEffect(() => {
-    if (!selectedConversation) return;
+  // Removed auto-refresh - we use Socket.IO for real-time messaging
+  // useEffect(() => {
+  //   if (!selectedConversation) return;
 
-    const interval = setInterval(() => {
-      loadMessages(selectedConversation._id);
-    }, 5000);
+  //   const interval = setInterval(() => {
+  //     loadMessages(selectedConversation._id);
+  //   }, 5000);
 
-    return () => clearInterval(interval);
-  }, [selectedConversation, loadMessages]);
+  //   return () => clearInterval(interval);
+  // }, [selectedConversation, loadMessages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -544,20 +562,31 @@ const Messages = () => {
                         (message) => message && message.sender && message._id
                       )
                       .map((message) => {
-                        // Get user ID - handle different formats and ensure proper comparison
-                        const currentUserId = user?.id || user?._id;
+                        // Get current user context (handles both customer and admin interfaces)
+                        const currentContext = getCurrentUserContext();
+                        const currentUserId = currentContext.id;
                         const senderId =
                           message.sender?._id || message.sender?.id;
 
-                        // Convert both to strings for comparison and log for debugging
+                        // Convert both to strings for comparison
                         const isOwn =
                           currentUserId?.toString() === senderId?.toString();
+
+                        // For better UX, also check if this message was sent in the same role context
+                        // as the current user session (helps with multi-role scenarios)
+                        const currentUserRole = currentContext.role;
+                        const messageFromSameRoleContext = 
+                          isOwn && (message.senderRole === currentUserRole);
 
                         // Get sender info
                         const senderName = `${
                           message.sender?.first_name || "Unknown"
                         } ${message.sender?.last_name || "User"}`;
+                        
+                        // Use senderRole from the message (role when message was sent)
+                        // instead of sender's current role to handle multi-role users
                         const senderRole =
+                          message.senderRole ||
                           message.sender?.roles ||
                           message.sender?.role ||
                           "customer";
@@ -584,7 +613,9 @@ const Messages = () => {
                               >
                                 <span>
                                   {isOwn
-                                    ? "You"
+                                    ? messageFromSameRoleContext 
+                                      ? `You (${senderRole})`
+                                      : `You as ${senderRole}`
                                     : senderRole === "admin"
                                     ? `Admin: ${
                                         senderName.split(" ")[0] || "Unknown"

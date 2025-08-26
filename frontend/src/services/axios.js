@@ -12,23 +12,19 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use((config) => {
   // Only add Authorization header if one is not explicitly provided
   if (!config.headers.Authorization) {
-    // For user endpoints, prioritize user token
-    // For admin endpoints, prioritize admin token
     const userToken = localStorage.getItem("token");
     const adminToken = localStorage.getItem("adminToken");
-
-    // Check if this is an admin endpoint
-    const isAdminEndpoint =
-      config.url &&
-      (config.url.startsWith("/admin") || config.url.includes("/admin/"));
-
+    
+    // SIMPLE: Check current URL to determine which token to use
+    const currentPath = window.location.pathname;
+    
     let token;
-    if (isAdminEndpoint) {
-      // For admin endpoints, use admin token first, then user token as fallback
-      token = adminToken || userToken;
+    if (currentPath.includes('/admin') || currentPath.includes('/staff')) {
+      // On admin/staff interface - use admin token
+      token = adminToken;
     } else {
-      // For regular endpoints, use user token first, then admin token as fallback
-      token = userToken || adminToken;
+      // On customer interface - use customer token
+      token = userToken;
     }
 
     if (token) {

@@ -18,6 +18,14 @@ const messageSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Sender's role when message was sent (important for multi-role users)
+    senderRole: {
+      type: String,
+      enum: ["customer", "admin", "staff"],
+      required: true,
+      index: true,
+    },
+
     // Message content
     content: {
       type: String,

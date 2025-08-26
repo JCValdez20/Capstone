@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Conversation = require("../models/Conversation");
 const { SOCKET_EVENTS, ROOM_TYPES } = require("./SocketConstants");
 
 class SocketManager {
@@ -19,45 +20,44 @@ class SocketManager {
       },
     });
 
-    // Authentication middleware
-    this.io.use(async (socket, next) => {
-      try {
-        const token = socket.handshake.auth.token;
-        console.log(
-          "🔐 Socket authentication attempt with token:",
-          token ? "Present" : "Missing"
-        );
+  // Authentication middleware with enhanced RBAC
+  this.io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth.token;
 
-        if (!token) {
-          console.log("❌ Socket auth failed: No token provided");
-          return next(new Error("Authentication error: No token provided"));
-        }
-
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log("✅ Socket token decoded:", decoded);
-
-        const user = await User.findById(decoded.userId).select("-password");
-        console.log(
-          "👤 Socket user found:",
-          user
-            ? `${user.first_name} ${user.last_name} (${user.role})`
-            : "Not found"
-        );
-
-        if (!user) {
-          console.log("❌ Socket auth failed: User not found");
-          return next(new Error("Authentication error: User not found"));
-        }
-
-        socket.user = user;
-        console.log("✅ Socket authentication successful");
-        next();
-      } catch (error) {
-        console.error("❌ Socket authentication error:", error.message);
-        next(new Error("Authentication error: Invalid token"));
+      if (!token) {
+        return next(new Error("Authentication error: No token provided"));
       }
-    });
+
+      // Verify token using consistent method
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || process.env.SECRET_KEY);
+      
+      // Use id field consistently (some tokens use userId, others use id)
+      const userId = decoded.id || decoded.userId;
+      const user = await User.findById(userId).select("-password");
+
+      if (!user) {
+        return next(new Error("Authentication error: User not found"));
+      }
+
+      // Attach standardized user data to socket
+      socket.userData = {
+        id: user._id,
+        userId: user._id,
+        email: user.email,
+        roles: user.roles,
+        role: user.roles,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      };
+
+      console.log(`✅ Socket authenticated: ${user.first_name} ${user.last_name} (${user.roles})`);
+      next();
+    } catch (error) {
+      console.error("❌ Socket authentication failed:", error.message);
+      return next(new Error("Authentication error: Invalid token"));
+    }
+  });
 
     this.io.on("connection", (socket) => {
       this.handleConnection(socket);
@@ -67,23 +67,30 @@ class SocketManager {
   }
 
   handleConnection(socket) {
-    const userId = socket.user._id.toString();
-    const userRole = socket.user.role || socket.user.roles;
+    const userId = socket.userData.id.toString();
+    const userRole = socket.userData.roles;
 
     console.log(
-      `🔗 User connected: ${socket.user.first_name} ${socket.user.last_name} (${userRole}) - Socket: ${socket.id}`
+      `🔗 User connected: ${socket.userData.first_name} ${socket.userData.last_name} (${userRole}) - Socket: ${socket.id}`
     );
 
-    // Store user connection
-    this.connectedUsers.set(userId, socket.id);
+    // Store user connection with enhanced RBAC data
+    this.connectedUsers.set(userId, {
+      socketId: socket.id,
+      roles: userRole,
+      userData: socket.userData
+    });
     this.userSockets.set(socket.id, userId);
 
     // Join user to their personal room
     socket.join(`user_${userId}`);
 
-    // Join admin users to admin room
-    if (userRole === "admin") {
+    // Role-based room joining for RBAC
+    if (userRole === "admin" || userRole === "staff") {
       socket.join("admin_room");
+    }
+    if (userRole === "staff") {
+      socket.join("staff_room");
     }
 
     // Handle joining conversation rooms
@@ -107,7 +114,7 @@ class SocketManager {
     socket.on("typing_start", (data) => {
       socket.to(`conversation_${data.conversationId}`).emit("user_typing", {
         userId: userId,
-        userName: `${socket.user.first_name} ${socket.user.last_name}`,
+        userName: `${socket.userData.first_name} ${socket.userData.last_name}`,
         conversationId: data.conversationId,
       });
     });
@@ -132,28 +139,45 @@ class SocketManager {
     });
   }
 
-  handleSendMessage(socket, data) {
-    const userId = socket.user._id.toString();
+  async handleSendMessage(socket, data) {
+    const userId = socket.userData.id.toString();
+    const userRole = socket.userData.roles;
 
-    // Emit to all users in the conversation
-    this.io.to(`conversation_${data.conversationId}`).emit("new_message", {
-      ...data,
-      sender: {
-        _id: userId,
-        first_name: socket.user.first_name,
-        last_name: socket.user.last_name,
-        role: socket.user.role || socket.user.roles,
-      },
-      timestamp: new Date(),
-    });
+    try {
+      // Basic RBAC validation - admins and staff can message anyone
+      // Customers can only participate in conversations they're part of
+      if (userRole === "customer") {
+        const conversation = await Conversation.findById(data.conversationId);
+        if (!conversation || !conversation.participants.includes(userId)) {
+          socket.emit("error", { message: "Access denied to this conversation" });
+          return;
+        }
+      }
 
-    console.log(
-      `💬 Message sent in conversation ${data.conversationId} by ${socket.user.first_name}`
-    );
+      // Emit to all users in the conversation
+      this.io.to(`conversation_${data.conversationId}`).emit("new_message", {
+        ...data,
+        sender: {
+          _id: userId,
+          first_name: socket.userData.first_name,
+          last_name: socket.userData.last_name,
+          roles: userRole,
+        },
+        senderRole: userRole, // Include the sender's current role context
+        timestamp: new Date(),
+      });
+
+      console.log(
+        `💬 Message sent in conversation ${data.conversationId} by ${socket.userData.first_name} (${userRole})`
+      );
+    } catch (error) {
+      console.error("❌ Error handling send message:", error);
+      socket.emit("error", { message: "Failed to send message" });
+    }
   }
 
   handleMarkAsRead(socket, data) {
-    const userId = socket.user._id.toString();
+    const userId = socket.userData.id.toString();
 
     // Notify other participants that messages were read
     socket.to(`conversation_${data.conversationId}`).emit("messages_read", {
@@ -163,7 +187,7 @@ class SocketManager {
     });
 
     console.log(
-      `✅ Messages marked as read in conversation ${data.conversationId} by ${userId}`
+      `📖 Messages marked as read in conversation ${data.conversationId} by ${socket.userData.first_name}`
     );
   }
 
@@ -179,9 +203,9 @@ class SocketManager {
 
   // Helper methods for emitting events from controllers
   emitToUser(userId, event, data) {
-    const socketId = this.connectedUsers.get(userId.toString());
-    if (socketId) {
-      this.io.to(socketId).emit(event, data);
+    const userConnection = this.connectedUsers.get(userId.toString());
+    if (userConnection) {
+      this.io.to(userConnection.socketId).emit(event, data);
       return true;
     }
     return false;
@@ -194,6 +218,19 @@ class SocketManager {
 
   emitToAdmins(event, data) {
     this.io.to("admin_room").emit(event, data);
+  }
+
+  emitToStaff(event, data) {
+    this.io.to("staff_room").emit(event, data);
+  }
+
+  // RBAC-aware method to emit based on user roles
+  emitToRole(role, event, data) {
+    if (role === "admin") {
+      this.emitToAdmins(event, data);
+    } else if (role === "staff") {
+      this.emitToStaff(event, data);
+    }
   }
 
   // Get online status

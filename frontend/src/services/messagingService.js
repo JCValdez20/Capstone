@@ -1,10 +1,31 @@
 import axios from "./axios";
 
 class MessagingService {
+  // Helper method to get role-based endpoint prefix - SIMPLIFIED
+  getRoleBasedPrefix() {
+    // SIMPLE: Check current URL to determine interface
+    const currentPath = window.location.pathname;
+    
+    // If on admin/staff interface, use admin/staff endpoints
+    if (currentPath.includes('/admin') || currentPath.includes('/staff')) {
+      const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+      
+      if (adminUser.roles === "admin") {
+        return "/messaging/admin";
+      } else if (adminUser.roles === "staff") {
+        return "/messaging/staff";
+      }
+    }
+    
+    // Default: Customer interface
+    return "/messaging";
+  }
+
   // Get all conversations for current user
   async getConversations(status = "active", page = 1, limit = 20) {
     try {
-      const response = await axios.get("/messaging/conversations", {
+      const prefix = this.getRoleBasedPrefix();
+      const response = await axios.get(`${prefix}/conversations`, {
         params: { status, page, limit },
       });
       return response.data;
@@ -16,8 +37,9 @@ class MessagingService {
   // Get or create conversation for a booking
   async getBookingConversation(bookingId) {
     try {
+      const prefix = this.getRoleBasedPrefix();
       const response = await axios.get(
-        `/messaging/conversations/booking/${bookingId}`
+        `${prefix}/conversations/booking/${bookingId}`
       );
       return response.data;
     } catch (error) {
@@ -28,8 +50,9 @@ class MessagingService {
   // Get or create direct conversation between admin/staff
   async getDirectConversation(targetUserId) {
     try {
+      const prefix = this.getRoleBasedPrefix();
       const response = await axios.get(
-        `/messaging/conversations/direct/${targetUserId}`
+        `${prefix}/conversations/direct/${targetUserId}`
       );
       return response.data;
     } catch (error) {
@@ -40,8 +63,9 @@ class MessagingService {
   // Get messages in a conversation
   async getMessages(conversationId, page = 1, limit = 50) {
     try {
+      const prefix = this.getRoleBasedPrefix();
       const response = await axios.get(
-        `/messaging/conversations/${conversationId}/messages`,
+        `${prefix}/conversations/${conversationId}/messages`,
         {
           params: { page, limit },
         }
@@ -60,8 +84,9 @@ class MessagingService {
     replyTo = null
   ) {
     try {
+      const prefix = this.getRoleBasedPrefix();
       const response = await axios.post(
-        `/messaging/conversations/${conversationId}/messages`,
+        `${prefix}/conversations/${conversationId}/messages`,
         {
           content,
           messageType,
@@ -77,8 +102,9 @@ class MessagingService {
   // Mark conversation as read
   async markAsRead(conversationId) {
     try {
+      const prefix = this.getRoleBasedPrefix();
       const response = await axios.put(
-        `/messaging/conversations/${conversationId}/read`
+        `${prefix}/conversations/${conversationId}/read`
       );
       return response.data;
     } catch (error) {
@@ -89,7 +115,8 @@ class MessagingService {
   // Get admin and staff users for direct messaging
   async getStaffAndAdminUsers() {
     try {
-      const response = await axios.get("/messaging/staff-admin-users");
+      const prefix = this.getRoleBasedPrefix();
+      const response = await axios.get(`${prefix}/staff-admin-users`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -99,7 +126,8 @@ class MessagingService {
   // Get messaging stats (admin only)
   async getStats() {
     try {
-      const response = await axios.get("/messaging/stats");
+      const prefix = this.getRoleBasedPrefix();
+      const response = await axios.get(`${prefix}/stats`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
