@@ -1,8 +1,8 @@
 import React from "react";
-import Messages from "../../../components/Messages.jsx";
+import AdminStaffMessages from "../../../components/AdminStaffMessages.jsx";
 
 const AdminMessages = () => {
-  return <Messages />;
+  return <AdminStaffMessages />;
 };
 
 export default AdminMessages;

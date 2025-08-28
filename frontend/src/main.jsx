@@ -20,6 +20,7 @@ import Profile from "./pages/user/profile/Profile.jsx";
 import AdminProtected from "./utils/AdminRoute.jsx";
 import StaffProtected from "./utils/StaffRoute.jsx";
 import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
+import StaffLogin from "./pages/staff/login/StaffLogin.jsx";
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
 import UserManagement from "./pages/admin/dashboard/UserManagement.jsx";
 import AdminBookings from "./pages/admin/dashboard/AdminBookings.jsx";
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
   {
     path: "/admin/login",
     element: <AdminLogin />,
+  },
+  {
+    path: "/staff/login",
+    element: <StaffLogin />,
   },
   {
     element: <AdminProtected />,

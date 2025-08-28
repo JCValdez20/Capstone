@@ -1,26 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const BookingController = require("../controllers/BookingController");
-const UserGuard = require("../middleware/User-Guard");
-const AdminAuth = require("../middleware/AdminAuth");
+const Auth = require("../middleware/auth");
+const Roles = require("../middleware/roles");
 
 // User routes
-router.post("/create", UserGuard, BookingController.createBooking);
-router.get("/my-bookings", UserGuard, BookingController.getUserBookings);
+router.post("/create", Roles.anyAuth(), BookingController.createBooking);
+router.get("/my-bookings", Roles.anyAuth(), BookingController.getUserBookings);
 router.get("/available-slots/:date", BookingController.getAvailableSlots);
-router.patch("/cancel/:id", UserGuard, BookingController.cancelBooking);
+router.patch("/cancel/:id", Roles.anyAuth(), BookingController.cancelBooking);
 
 // Admin routes
-router.get("/all", AdminAuth, BookingController.getAllBookings);
+router.get("/all", Roles.admin(), BookingController.getAllBookings);
 router.patch(
   "/update-status/:id",
-  AdminAuth,
+  Roles.admin(),
   BookingController.updateBookingStatus
 );
-router.get("/stats", AdminAuth, BookingController.getBookingStats);
+router.get("/stats", Roles.admin(), BookingController.getBookingStats);
 router.post(
   "/initialize-conversations",
-  AdminAuth,
+  Roles.admin(),
   BookingController.initializeConversations
 );
 

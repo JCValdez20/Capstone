@@ -53,24 +53,40 @@ const Messages = () => {
   // Helper function to get current user context - SIMPLIFIED
   const getCurrentUserContext = useCallback(() => {
     const currentPath = window.location.pathname;
-    
-    // SIMPLE: If on admin/staff interface, use admin user
-    if (currentPath.includes('/admin') || currentPath.includes('/staff')) {
+
+    // SIMPLE: If on admin/staff interface, check for staff first, then admin
+    if (currentPath.includes("/admin") || currentPath.includes("/staff")) {
+      // Check for staff user first
+      const staffUser = JSON.parse(localStorage.getItem("staffUser") || "{}");
+      if (staffUser.roles === "staff") {
+        return {
+          id: staffUser.id || staffUser._id,
+          role: "staff",
+          name: `${staffUser.first_name} ${staffUser.last_name}`,
+          isAdminInterface: true,
+        };
+      }
+
+      // Then check for admin user
       const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
-      return {
-        id: adminUser.id || adminUser._id,
-        role: adminUser.roles || "staff",
-        name: `${adminUser.first_name} ${adminUser.last_name}`,
-        isAdminInterface: true
-      };
+      if (adminUser.roles === "admin") {
+        return {
+          id: adminUser.id || adminUser._id,
+          role: "admin",
+          name: `${adminUser.first_name} ${adminUser.last_name}`,
+          isAdminInterface: true,
+        };
+      }
     } else {
       // Customer interface
       const regularUser = JSON.parse(localStorage.getItem("user") || "{}");
       return {
         id: regularUser.id || regularUser._id,
-        role: regularUser.role || "customer", 
-        name: regularUser.name || `${regularUser.first_name} ${regularUser.last_name}`,
-        isAdminInterface: false
+        role: regularUser.role || "customer",
+        name:
+          regularUser.name ||
+          `${regularUser.first_name} ${regularUser.last_name}`,
+        isAdminInterface: false,
       };
     }
   }, []);
@@ -85,18 +101,75 @@ const Messages = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Enhanced: For staff, always show admin conversation at the top
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
+      // DEBUG: Show staff token and staff user
+      const staffUser = localStorage.getItem("staffUser");
+      const staffToken = localStorage.getItem("staffToken");
+      console.log("[DEBUG] staffUser:", staffUser);
+      console.log("[DEBUG] staffToken:", staffToken);
+      toast("[DEBUG] staffUser: " + staffUser);
+      toast("[DEBUG] staffToken: " + (staffToken ? staffToken.substring(0, 12) + "..." : "none"));
+
       const response = await getMessagingService().getConversations();
-      setConversations(response.data?.conversations || []);
+      let allConvos = response.data?.conversations || [];
+
+      // If staff, ensure admin conversation is at the top
+      if (isStaff) {
+        // Find admin user
+        let adminUser = null;
+        if (staffAdminUsers.length > 0) {
+          adminUser = staffAdminUsers.find(u => u.roles === "admin");
+        } else {
+          // fallback: try to load
+          const usersResp = await getMessagingService().getStaffAndAdminUsers();
+          adminUser = (usersResp.data?.users || []).find(u => u.roles === "admin");
+        }
+
+        let adminConversation = null;
+        if (adminUser) {
+          // Find direct conversation with admin
+          adminConversation = allConvos.find(c => {
+            if (!c.participants) return false;
+            const roles = c.participants.map(p => p.user?.roles || p.user?.role);
+            return roles.includes("admin") && roles.includes("staff") && !c.relatedBooking;
+          });
+
+          // If not found, fetch/create it
+          if (!adminConversation) {
+            const directResp = await getMessagingService().getDirectConversation(adminUser._id);
+            if (directResp.data?.conversation) {
+              adminConversation = directResp.data.conversation;
+              // Add to allConvos if not present
+              if (!allConvos.some(c => c._id === adminConversation._id)) {
+                allConvos = [adminConversation, ...allConvos];
+              }
+            }
+          }
+
+          // Remove admin conversation from the rest (if present)
+          allConvos = allConvos.filter(c => {
+            if (!c.participants) return true;
+            const roles = c.participants.map(p => p.user?.roles || p.user?.role);
+            return !(roles.includes("admin") && roles.includes("staff") && !c.relatedBooking);
+          });
+
+          // Place admin conversation at the top
+          if (adminConversation) {
+            allConvos = [adminConversation, ...allConvos];
+          }
+        }
+      }
+      setConversations(allConvos);
     } catch (error) {
       console.error("Error loading conversations:", error);
       toast.error("Failed to load conversations");
     } finally {
       setLoading(false);
     }
-  }, [getMessagingService]);
+  }, [getMessagingService, isStaff, staffAdminUsers]);
 
   const loadStaffAdminUsers = useCallback(async () => {
     try {
@@ -144,7 +217,29 @@ const Messages = () => {
   // Socket.IO integration for real-time messaging
   useEffect(() => {
     // Ensure socket is connected when component mounts
-    const token = localStorage.getItem("token");
+    const getSocketToken = () => {
+      const currentPath = window.location.pathname;
+      const adminToken = localStorage.getItem("adminToken");
+      const staffToken = localStorage.getItem("staffToken");
+      const userToken = localStorage.getItem("token");
+
+      // Admin pages should use admin token
+      if (currentPath.includes("/admin")) {
+        if (adminToken) return adminToken;
+        if (staffToken) return staffToken; // fallback
+      }
+
+      // Staff pages should use staff token
+      if (currentPath.includes("/staff")) {
+        if (staffToken) return staffToken;
+        if (adminToken) return adminToken; // fallback
+      }
+
+      // Default to normal user token
+      return userToken;
+    };
+
+    const token = getSocketToken();
 
     if (token && !socketService.isConnected()) {
       try {
@@ -167,56 +262,79 @@ const Messages = () => {
     }
   }, [selectedConversation]);
 
+  // Join/leave conversation when selection changes, ensuring socket is connected
   useEffect(() => {
-    // Listen for new messages from Socket.IO
-    const handleNewMessage = (data) => {
-      if (data.conversationId === selectedConversation?._id) {
-        // Add the new message to the current conversation
-        setMessages((prev) => {
-          // Avoid duplicates
-          const messageExists = prev.some(
-            (msg) => msg._id === data.message._id
-          );
-          if (!messageExists) {
-            return [...prev, data.message];
-          }
-          return prev;
-        });
-        setTimeout(scrollToBottom, 100);
+    const joinIfConnected = async () => {
+      if (!selectedConversation) return;
+      if (!socketService.isConnected()) {
+        // Try to connect with role-aware token
+        const currentPath = window.location.pathname;
+        const adminToken = localStorage.getItem("adminToken");
+        const staffToken = localStorage.getItem("staffToken");
+        const userToken = localStorage.getItem("token");
+        let token = userToken;
+        if (currentPath.includes("/admin")) token = adminToken || staffToken || userToken;
+        else if (currentPath.includes("/staff")) token = staffToken || adminToken || userToken;
+        if (token) socketService.connect(token);
       }
-      // Refresh conversations list to show latest message
-      loadConversations();
+
+      // Join room after ensuring connection
+      if (socketService.isConnected()) {
+        socketService.joinConversation(selectedConversation._id);
+      }
     };
 
-    const handleNewMessageFromUser = (data) => {
-      if (data.conversationId === selectedConversation?._id) {
-        // Add the new message to the current conversation
-        setMessages((prev) => {
-          // Avoid duplicates
-          const messageExists = prev.some(
-            (msg) => msg._id === data.message._id
-          );
-          if (!messageExists) {
-            return [...prev, data.message];
-          }
-          return prev;
-        });
-        setTimeout(scrollToBottom, 100);
-      }
-      // Refresh conversations list to show latest message
-      loadConversations();
-    };
+    joinIfConnected();
 
-    // Listen for both event types that the backend might emit
-    socketService.onNewMessage(handleNewMessage);
-    socketService.onNewMessageFromUser(handleNewMessageFromUser);
-
-    // Cleanup listeners when component unmounts
     return () => {
-      console.log("Cleaning up socket listeners");
+      if (selectedConversation && socketService.isConnected()) {
+        socketService.leaveConversation(selectedConversation._id);
+      }
+    };
+  }, [selectedConversation]);
+
+  // Global socket listeners - attach once
+  useEffect(() => {
+    const handleNewMessage = (data) => {
+      // Update messages for current conversation
+      if (data.conversationId === selectedConversation?._id) {
+        setMessages((prev) => {
+          const exists = prev.some((m) => m._id === data.message._id);
+          if (!exists) return [...prev, data.message];
+          return prev;
+        });
+        setTimeout(scrollToBottom, 100);
+      }
+
+      // Update conversation list
+      setConversations((prevConvos) => {
+        let found = false;
+        const updated = prevConvos.map((c) =>
+          c._id === data.conversationId ? { ...c, lastMessage: data.message } : c
+        );
+        if (!found && data.conversation) {
+          return [data.conversation, ...updated];
+        }
+        return updated;
+      });
+    };
+
+    const handleMessagesRead = (data) => {
+      // Update unread counts or UI if needed
+      setConversations((prev) =>
+        prev.map((c) =>
+          c._id === data.conversationId ? { ...c, unreadCount: 0 } : c
+        )
+      );
+    };
+
+    socketService.onNewMessage(handleNewMessage);
+    socketService.onMessagesRead(handleMessagesRead);
+
+    return () => {
       socketService.removeAllListeners();
     };
-  }, [selectedConversation, loadConversations]);
+  }, [selectedConversation]);
 
   // Removed auto-refresh - we use Socket.IO for real-time messaging
   // useEffect(() => {
@@ -344,7 +462,16 @@ const Messages = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
-                  Select a team member to start a direct conversation:
+                  {(() => {
+                    const currentContext = getCurrentUserContext();
+                    if (currentContext.role === "admin") {
+                      return "Select a staff member to start a conversation:";
+                    } else if (currentContext.role === "staff") {
+                      return "Select a team member or customer to start a conversation:";
+                    } else {
+                      return "Select a team member to start a direct conversation:";
+                    }
+                  })()}
                 </p>
                 <div className="space-y-2">
                   {staffAdminUsers.map((staffUser) => (
@@ -575,14 +702,24 @@ const Messages = () => {
                         // For better UX, also check if this message was sent in the same role context
                         // as the current user session (helps with multi-role scenarios)
                         const currentUserRole = currentContext.role;
-                        const messageFromSameRoleContext = 
-                          isOwn && (message.senderRole === currentUserRole);
+                        const messageFromSameRoleContext =
+                          isOwn && message.senderRole === currentUserRole;
+
+                        // Debug logging
+                        if (isOwn) {
+                          console.log("Debug - Own message detected:", {
+                            currentUserRole,
+                            messageSenderRole: message.senderRole,
+                            messageFromSameRoleContext,
+                            isOwn,
+                          });
+                        }
 
                         // Get sender info
                         const senderName = `${
                           message.sender?.first_name || "Unknown"
                         } ${message.sender?.last_name || "User"}`;
-                        
+
                         // Use senderRole from the message (role when message was sent)
                         // instead of sender's current role to handle multi-role users
                         const senderRole =
@@ -613,7 +750,7 @@ const Messages = () => {
                               >
                                 <span>
                                   {isOwn
-                                    ? messageFromSameRoleContext 
+                                    ? messageFromSameRoleContext
                                       ? `You (${senderRole})`
                                       : `You as ${senderRole}`
                                     : senderRole === "admin"

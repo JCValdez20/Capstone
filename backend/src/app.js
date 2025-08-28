@@ -58,15 +58,13 @@ const userRoutes = require("./routes/UserRoutes");
 const authRoutes = require("./routes/AuthRoutes");
 const adminRoutes = require("./routes/AdminRoutes");
 const bookingRoutes = require("./routes/BookingRoutes");
-const unifiedMessagingRoutes = require("./routes/UnifiedMessagingRoutes");
-const debugRoutes = require("./routes/DebugRoutes");
+const unifiedMessagingRoutes = require("./routes/MessagingRoutes");
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/bookings", bookingRoutes);
 app.use("/messaging", unifiedMessagingRoutes); // Unified RBAC messaging routes
-app.use("/debug", debugRoutes); // Debug routes for development
 
 app.use((req, res, next) => {
   const error = new Error("Not Found");

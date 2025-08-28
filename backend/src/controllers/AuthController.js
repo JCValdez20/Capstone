@@ -26,8 +26,6 @@ exports.loginSuccess = async (req, res) => {
         last_name: req.user.last_name,
         name: req.user.name,
         roles: req.user.roles,
-        role: req.user.roles, // Add for compatibility
-        // Remove profilePic from URL to prevent 431 error - will be fetched separately
         hasProfilePic: !!req.user.profilePic, // Just indicate if user has a profile pic
         isGoogleUser: true,
       })

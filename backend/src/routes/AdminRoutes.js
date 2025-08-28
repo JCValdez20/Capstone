@@ -2,17 +2,14 @@ const express = require("express");
 const router = express.Router();
 const UserController = require("../controllers/UserController");
 const BookingController = require("../controllers/BookingController");
-const adminAuth = require("../middleware/AdminAuth");
-const adminStaffAuth = require("../middleware/AdminStaffAuth");
+const Auth = require("../middleware/auth");
+const Roles = require("../middleware/roles");
 
 // Admin login route
 router.post("/login", UserController.adminLogin);
 
-// Admin creation route (for creating new admins)
-// router.post("/create", UserController.createAdmin);
-
 // Protected admin routes (require admin authentication)
-router.get("/dashboard", adminStaffAuth, (req, res) => {
+router.get("/dashboard", Roles.staffOrAdmin(), (req, res) => {
   res.status(200).json({
     message: "Admin dashboard accessed successfully",
     admin: req.user,
@@ -20,25 +17,29 @@ router.get("/dashboard", adminStaffAuth, (req, res) => {
 });
 
 // User management routes (Admin + Staff access)
-router.get("/users", adminStaffAuth, UserController.getAllUsers);
-router.get("/users/:id", adminStaffAuth, UserController.getUserById);
-router.put("/users/:id", adminStaffAuth, UserController.updateUser);
-router.delete("/users/:id", adminAuth, UserController.deleteUser); // Admin only
+router.get("/users", Roles.staffOrAdmin(), UserController.getAllUsers);
+router.get("/users/:id", Roles.staffOrAdmin(), UserController.getUserById);
+router.put("/users/:id", Roles.staffOrAdmin(), UserController.updateUser);
+router.delete("/users/:id", Roles.admin(), UserController.deleteUser); // Admin only
 
 // Staff management routes (Admin only)
-router.post("/staff", adminAuth, UserController.createStaffAccount);
-router.get("/staff", adminAuth, UserController.getAllStaff);
-router.put("/staff/:staffId", adminAuth, UserController.updateStaffAccount);
-router.delete("/staff/:staffId", adminAuth, UserController.deleteStaffAccount);
+router.post("/staff", Roles.admin(), UserController.createStaffAccount);
+router.get("/staff", Roles.admin(), UserController.getAllStaff);
+router.put("/staff/:staffId", Roles.admin(), UserController.updateStaffAccount);
+router.delete(
+  "/staff/:staffId",
+  Roles.admin(),
+  UserController.deleteStaffAccount
+);
 router.put(
   "/staff/:staffId/reset-password",
-  adminAuth,
+  Roles.admin(),
   UserController.resetStaffPassword
 );
 
 // Booking management routes (Admin + Staff access)
-router.get("/bookings", adminStaffAuth, BookingController.getAllBookings);
-router.get("/bookings/test", adminStaffAuth, async (req, res) => {
+router.get("/bookings", Roles.staffOrAdmin(), BookingController.getAllBookings);
+router.get("/bookings/test", Roles.staffOrAdmin(), async (req, res) => {
   try {
     const Booking = require("../models/Booking");
     const bookings = await Booking.find().limit(5);
@@ -53,15 +54,19 @@ router.get("/bookings/test", adminStaffAuth, async (req, res) => {
 });
 router.get(
   "/bookings/stats",
-  adminStaffAuth,
+  Roles.staffOrAdmin(),
   BookingController.getBookingStats
 );
 router.put(
   "/bookings/:id/status",
-  adminStaffAuth, // Staff can also update booking status
+  Roles.staffOrAdmin(), // Staff can also update booking status
   BookingController.updateBookingStatus
 );
-router.put("/bookings/:id", adminStaffAuth, BookingController.updateBooking);
-router.delete("/bookings/:id", adminAuth, BookingController.cancelBooking); // Admin only
+router.put(
+  "/bookings/:id",
+  Roles.staffOrAdmin(),
+  BookingController.updateBooking
+);
+router.delete("/bookings/:id", Roles.admin(), BookingController.cancelBooking); // Admin only
 
 module.exports = router;

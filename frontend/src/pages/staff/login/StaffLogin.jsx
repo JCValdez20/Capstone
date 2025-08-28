@@ -11,11 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2, Shield, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, Users, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import adminService from "@/services/adminService";
 
-const AdminLogin = () => {
+const StaffLogin = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -25,10 +25,10 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // Check if admin is already authenticated
+  // Check if staff is already authenticated
   useEffect(() => {
-    if (adminService.isAdminAuthenticated()) {
-      navigate("/admin/dashboard", { replace: true });
+    if (adminService.isStaffAuthenticated()) {
+      navigate("/staff/dashboard", { replace: true });
     }
   }, [navigate]);
 
@@ -57,26 +57,26 @@ const AdminLogin = () => {
         formData.password
       );
 
-      // Check if the logged in user is admin
+      // Check if the logged in user is staff
       const userRole = response.user.role || response.user.roles;
 
-      if (userRole !== "admin") {
-        if (userRole === "staff") {
+      if (userRole !== "staff") {
+        if (userRole === "admin") {
           setError(
-            "Access denied. This is the admin login portal. Staff accounts should use the Staff login portal."
+            "Access denied. This is the staff login portal. Admin accounts should use the Admin login portal."
           );
         } else {
-          setError("Access denied. Administrator privileges required.");
+          setError("Access denied. Staff privileges required.");
         }
         return;
       }
 
-      toast.success("Admin login successful", {
-        description: "Welcome to the admin dashboard!",
+      toast.success("Staff login successful", {
+        description: "Welcome to the staff dashboard!",
       });
 
-      // Redirect to admin dashboard
-      navigate("/admin/dashboard", { replace: true });
+      // Redirect to staff dashboard
+      navigate("/staff/dashboard", { replace: true });
     } catch (error) {
       const errorMessage = error.message || "Login failed. Please try again.";
       setError(errorMessage);
@@ -92,7 +92,7 @@ const AdminLogin = () => {
   const isFormValid = formData.email && formData.password;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         {/* Back to Home */}
         <div className="flex justify-center">
@@ -108,15 +108,15 @@ const AdminLogin = () => {
         {/* Login Card */}
         <Card className="border-0 shadow-xl">
           <CardHeader className="space-y-4 text-center">
-            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-              <Shield className="w-8 h-8 text-red-600" />
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <Users className="w-8 h-8 text-blue-600" />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-gray-900">
-                Administrator Login
+                Staff Login
               </CardTitle>
               <CardDescription className="text-gray-600">
-                Sign in to access your admin dashboard
+                Sign in to access your staff dashboard
               </CardDescription>
             </div>
           </CardHeader>
@@ -181,7 +181,7 @@ const AdminLogin = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-red-600 hover:bg-red-700"
+                className="w-full bg-blue-600 hover:bg-blue-700"
                 disabled={!isFormValid || isLoading}
               >
                 {isLoading ? (
@@ -195,15 +195,15 @@ const AdminLogin = () => {
               </Button>
             </form>
 
-            {/* Staff Portal Link */}
+            {/* Admin Portal Link */}
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
-                Staff account?{" "}
+                Admin account?{" "}
                 <Link
-                  to="/staff/login"
-                  className="font-medium text-red-600 hover:text-red-500 transition-colors"
+                  to="/admin/login"
+                  className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
                 >
-                  Go to Staff Portal
+                  Go to Admin Portal
                 </Link>
               </p>
             </div>
@@ -214,4 +214,4 @@ const AdminLogin = () => {
   );
 };
 
-export default AdminLogin;
+export default StaffLogin;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Sidebar,
   SidebarProvider,
@@ -41,52 +41,100 @@ import adminService from "@/services/adminService";
 
 const AdminSidebar = ({ children }) => {
   const location = useLocation();
+
+  // Determine the current user based on the current path
+  const isStaffRoute = location.pathname.startsWith("/staff");
+  const isAdminRoute = location.pathname.startsWith("/admin");
+
   const currentAdmin = adminService.getCurrentAdmin();
+  const currentStaff = adminService.getCurrentStaff();
+
+  // Authentication validation based on route
+  useEffect(() => {
+    if (isStaffRoute && !currentStaff) {
+      // Staff route but no staff user - redirect to staff login
+      window.location.href = "/staff/login";
+      return;
+    }
+
+    if (isAdminRoute && !currentAdmin) {
+      // Admin route but no admin user - redirect to admin login
+      window.location.href = "/admin/login";
+      return;
+    }
+  }, [isStaffRoute, isAdminRoute, currentAdmin, currentStaff]);
+
+  // Select the appropriate user based on current route
+  let currentUser;
+  if (isStaffRoute && currentStaff) {
+    currentUser = currentStaff;
+  } else if (isAdminRoute && currentAdmin) {
+    currentUser = currentAdmin;
+  } else {
+    // Fallback: use whichever user is available
+    currentUser = currentAdmin || currentStaff;
+  }
 
   const handleLogout = () => {
-    adminService.logout();
-    window.location.href = "/admin/login";
+    // Determine which session to logout based on current route
+    if (isStaffRoute && currentStaff) {
+      adminService.logout("staff");
+      window.location.href = "/staff/login";
+    } else if (isAdminRoute && currentAdmin) {
+      adminService.logout("admin");
+      window.location.href = "/admin/login";
+    } else {
+      // Fallback: logout all sessions
+      adminService.logout();
+      window.location.href = "/";
+    }
   };
 
-  const firstName = currentAdmin?.first_name || "Admin";
-  const lastName = currentAdmin?.last_name || "User";
-  const fullName = `${firstName} ${lastName}`.trim() || "Admin";
-  const userEmail = currentAdmin?.email || "admin@washup.com";
+  const firstName = currentUser?.first_name || "User";
+  const lastName = currentUser?.last_name || "User";
+  const fullName = `${firstName} ${lastName}`.trim() || "User";
+  const userEmail = currentUser?.email || "user@washup.com";
   const userInitials =
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "AU";
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "UU";
+
+  // Determine user role based on current route and user context
+  let userRole;
+  if (isStaffRoute) {
+    userRole = "staff";
+  } else if (isAdminRoute) {
+    userRole = "admin";
+  } else {
+    // Fallback to actual user role
+    userRole = currentUser?.roles || currentUser?.role;
+  }
 
   const navItems = [
     {
       icon: Home,
       label: "Dashboard",
-      path:
-        currentAdmin?.roles === "admin"
-          ? "/admin/dashboard"
-          : "/staff/dashboard",
+      path: isStaffRoute ? "/staff/dashboard" : "/admin/dashboard",
       tooltip: "Dashboard",
     },
     {
       icon: Users,
       label: "User Management",
-      path: currentAdmin?.roles === "admin" ? "/admin/users" : "/staff/users",
+      path: isStaffRoute ? "/staff/users" : "/admin/users",
       tooltip: "Manage Users",
     },
     {
       icon: Calendar,
       label: "Booking Management",
-      path:
-        currentAdmin?.roles === "admin" ? "/admin/bookings" : "/staff/bookings",
+      path: isStaffRoute ? "/staff/bookings" : "/admin/bookings",
       tooltip: "Manage Bookings",
     },
     {
       icon: MessageCircle,
       label: "Messages",
-      path:
-        currentAdmin?.roles === "admin" ? "/admin/messages" : "/staff/messages",
+      path: isStaffRoute ? "/staff/messages" : "/admin/messages",
       tooltip: "Messages & Chat",
     },
-    // Show Staff Management only for admin role
-    ...(currentAdmin?.roles === "admin"
+    // Show Staff Management only for admin routes and admin users
+    ...(!isStaffRoute && currentAdmin
       ? [
           {
             icon: Shield,
@@ -121,7 +169,7 @@ const AdminSidebar = ({ children }) => {
               </div>
               <div className="group-data-[collapsible=icon]:hidden text-center">
                 <h1 className="text-lg font-black text-red-700">
-                  WashUp {currentAdmin?.roles === "admin" ? "Admin" : "Staff"}
+                  WashUp {userRole === "admin" ? "Admin" : "Staff"}
                 </h1>
                 <p className="text-xs text-slate-500">Management Portal</p>
               </div>
@@ -187,9 +235,7 @@ const AdminSidebar = ({ children }) => {
                       {fullName}
                     </p>
                     <p className="text-xs text-red-600 truncate">
-                      {currentAdmin?.roles === "admin"
-                        ? "Administrator"
-                        : "Staff"}
+                      {userRole === "admin" ? "Administrator" : "Staff"}
                     </p>
                   </div>
 
@@ -207,9 +253,7 @@ const AdminSidebar = ({ children }) => {
                     {fullName}
                   </p>
                   <p className="text-xs text-red-600">
-                    {currentAdmin?.roles === "admin"
-                      ? "Administrator"
-                      : "Staff"}
+                    {userRole === "admin" ? "Administrator" : "Staff"}
                   </p>
                   <p className="text-xs text-slate-500">{userEmail}</p>
                 </div>

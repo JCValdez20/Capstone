@@ -2,6 +2,7 @@ const Booking = require("../models/Booking");
 const User = require("../models/User"); // Import User model to ensure it's registered
 const Conversation = require("../models/Conversation"); // Import Conversation model
 const send = require("../utils/Response");
+const socketManager = require("../utils/SocketManager");
 
 // Helper function to update timestamps
 const updateTimestamp = (bookingData) => {
@@ -182,7 +183,7 @@ exports.createBooking = async (req, res) => {
         participants: [
           {
             user: userId,
-            role: "customer",
+            roles: "customer",
           },
         ],
         relatedBooking: booking._id,
@@ -198,6 +199,43 @@ exports.createBooking = async (req, res) => {
         "⚠️ Failed to create conversation for booking:",
         conversationError
       );
+    }
+
+    // 🚀 REAL-TIME: Emit new booking notification to admin/staff
+    try {
+      const bookingWithUser = await Booking.findById(booking._id).populate('user', 'first_name last_name email');
+      
+      socketManager.emitToAdmins('new_booking_created', {
+        bookingId: booking._id,
+        customer: {
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email
+        },
+        service: booking.service,
+        date: booking.date,
+        timeSlot: booking.timeSlot,
+        status: booking.status,
+        createdAt: booking.createdAt,
+        booking: bookingWithUser
+      });
+
+      socketManager.emitToStaff('new_booking_created', {
+        bookingId: booking._id,
+        customer: {
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email
+        },
+        service: booking.service,
+        date: booking.date,
+        timeSlot: booking.timeSlot,
+        status: booking.status,
+        createdAt: booking.createdAt,
+        booking: bookingWithUser
+      });
+
+      console.log(`🔔 Real-time notification sent for new booking ${booking._id}`);
+    } catch (socketError) {
+      console.error('Socket.IO emission error:', socketError);
     }
 
     return send.sendResponseMessage(
@@ -380,7 +418,7 @@ exports.updateBookingStatus = async (req, res) => {
     // Add to status history
     const statusHistoryEntry = {
       status: status,
-      updatedBy: req.user.id || req.user.userId, // Support both token formats
+      updatedBy: req.userData.id || req.userData.userId, // Use req.userData from auth middleware
       updatedAt: new Date(),
       reason: status === "rejected" ? rejectionReason : undefined,
       notes: notes || undefined,
@@ -392,7 +430,7 @@ exports.updateBookingStatus = async (req, res) => {
       notes: notes || booking.notes,
       rejectionReason:
         status === "rejected" ? rejectionReason : booking.rejectionReason,
-      updatedBy: req.user.id || req.user.userId, // Track who updated
+      updatedBy: req.userData.id || req.userData.userId, // Use req.userData from auth middleware
       $push: { statusHistory: statusHistoryEntry },
     });
 
@@ -424,10 +462,49 @@ exports.updateBookingStatus = async (req, res) => {
 
     // Add who updated info to the message
     const updatedByUser =
-      req.user.first_name && req.user.last_name
-        ? `${req.user.first_name} ${req.user.last_name}`
-        : req.user.email;
+      req.userData.first_name && req.userData.last_name
+        ? `${req.userData.first_name} ${req.userData.last_name}`
+        : req.userData.email;
     message += ` (Updated by: ${updatedByUser})`;
+
+    // 🚀 REAL-TIME: Emit booking status update to all relevant users
+    try {
+      // Notify the customer who owns the booking
+      if (updatedBooking.user) {
+        socketManager.emitToUser(updatedBooking.user._id || updatedBooking.user, 'booking_status_updated', {
+          bookingId: updatedBooking._id,
+          status: updatedBooking.status,
+          message: message,
+          updatedBy: updatedByUser,
+          updatedAt: new Date(),
+          booking: updatedBooking
+        });
+      }
+
+      // Notify all admin/staff users about the update
+      socketManager.emitToAdmins('booking_status_updated', {
+        bookingId: updatedBooking._id,
+        status: updatedBooking.status,
+        message: message,
+        updatedBy: updatedByUser,
+        updatedAt: new Date(),
+        booking: updatedBooking
+      });
+
+      socketManager.emitToStaff('booking_status_updated', {
+        bookingId: updatedBooking._id,
+        status: updatedBooking.status,
+        message: message,
+        updatedBy: updatedByUser,
+        updatedAt: new Date(),
+        booking: updatedBooking
+      });
+
+      console.log(`🔔 Real-time notification sent for booking ${updatedBooking._id} status change to ${status}`);
+    } catch (socketError) {
+      console.error('Socket.IO emission error:', socketError);
+      // Don't fail the request if socket emission fails
+    }
 
     return send.sendResponseMessage(res, 200, updatedBooking, message);
   } catch (error) {
@@ -554,7 +631,7 @@ exports.initializeConversations = async (req, res) => {
           participants: [
             {
               user: booking.user._id,
-              role: "customer",
+              roles: "customer",
             },
           ],
           relatedBooking: booking._id,

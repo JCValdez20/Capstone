@@ -5,18 +5,24 @@ class MessagingService {
   getRoleBasedPrefix() {
     // SIMPLE: Check current URL to determine interface
     const currentPath = window.location.pathname;
-    
+
     // If on admin/staff interface, use admin/staff endpoints
-    if (currentPath.includes('/admin') || currentPath.includes('/staff')) {
-      const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
-      
-      if (adminUser.roles === "admin") {
-        return "/messaging/admin";
-      } else if (adminUser.roles === "staff") {
+    if (currentPath.includes("/admin") || currentPath.includes("/staff")) {
+      // Check for staff user first
+      const staffUser = JSON.parse(localStorage.getItem("staffUser") || "{}");
+
+      if (staffUser.roles === "staff") {
         return "/messaging/staff";
       }
+
+      // Then check for admin user
+      const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+
+      if (adminUser.roles === "admin") {
+        return "/messaging/admin";
+      }
     }
-    
+
     // Default: Customer interface
     return "/messaging";
   }
@@ -25,7 +31,20 @@ class MessagingService {
   async getConversations(status = "active", page = 1, limit = 20) {
     try {
       const prefix = this.getRoleBasedPrefix();
-      const response = await axios.get(`${prefix}/conversations`, {
+      const endpoint = `${prefix}/conversations`;
+
+      // DEBUG: Show endpoint and Authorization header
+      const staffToken = localStorage.getItem("staffToken");
+      const adminToken = localStorage.getItem("adminToken");
+      const userToken = localStorage.getItem("token");
+      let debugAuth = staffToken || adminToken || userToken || "none";
+      if (debugAuth.length > 20) debugAuth = debugAuth.substring(0, 20) + "...";
+      if (window && window.toast) window.toast(`[DEBUG] Endpoint: ${endpoint}`);
+      if (window && window.toast) window.toast(`[DEBUG] Auth: ${debugAuth}`);
+      console.log("[DEBUG] Calling endpoint:", endpoint);
+      console.log("[DEBUG] Auth header (truncated):", debugAuth);
+
+      const response = await axios.get(endpoint, {
         params: { status, page, limit },
       });
       return response.data;
@@ -128,6 +147,31 @@ class MessagingService {
     try {
       const prefix = this.getRoleBasedPrefix();
       const response = await axios.get(`${prefix}/stats`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  // Get staff list for admin to message (admin only)
+  async getStaffList() {
+    try {
+      const response = await axios.get("/messaging/admin/staff-list");
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  // Create direct conversation with staff (admin only)
+  async createDirectConversation(staffId) {
+    try {
+      const response = await axios.post(
+        "/messaging/admin/direct-conversation",
+        {
+          staffId,
+        }
+      );
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

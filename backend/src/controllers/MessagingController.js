@@ -1,56 +1,33 @@
-const Conversation = require("../models/Conversation");
-const Messages = require("../models/Messages");
-const Booking = require("../models/Booking");
-const User = require("../models/User");
 const socketManager = require("../utils/SocketManager");
 const send = require("../utils/Response");
+const MessagingService = require("../services/MessagingService");
 
+/**
+ * Enhanced MessagingController with RBAC Integration
+ * Handles HTTP requests and delegates business logic to MessagingService
+ */
 class MessagingController {
-  // Get all conversations for a user
+  // Get all conversations for a user with RBAC
   async getConversations(req, res) {
     try {
-      const userId = req.userData.id;
+      const { id: userId, role: userRole } = req.userData;
       const { status = "active", page = 1, limit = 20 } = req.query;
 
-      const conversations = await Conversation.findByUser(userId, status)
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
-
-      // Filter out conversations with invalid participants
-      const validConversations = conversations.filter(
-        (conv) =>
-          conv.participants &&
-          conv.participants.length > 0 &&
-          conv.participants.every((p) => p.user && p.user._id)
-      );
-
-      // Get unread counts for each conversation
-      const conversationsWithUnread = await Promise.all(
-        validConversations.map(async (conv) => {
-          const unreadCount = await Messages.getUnreadCount(conv._id, userId);
-          return {
-            ...conv.toObject(),
-            unreadCount: unreadCount,
-            isOnline: conv.participants.some(
-              (p) =>
-                p.user &&
-                p.user._id &&
-                p.user._id.toString() !== userId &&
-                socketManager.isUserOnline(p.user._id)
-            ),
-          };
-        })
+      const conversations = await MessagingService.getConversationsForUser(
+        userId,
+        userRole,
+        { status, page: parseInt(page), limit: parseInt(limit) }
       );
 
       return send.sendResponseMessage(
         res,
         200,
         {
-          conversations: conversationsWithUnread,
+          conversations,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
-            total: validConversations.length,
+            total: conversations.length,
           },
         },
         "Conversations fetched successfully"
@@ -61,95 +38,18 @@ class MessagingController {
     }
   }
 
-  // Get or create a conversation for a booking
+  // Get or create a conversation for a booking with RBAC
   async getOrCreateConversation(req, res) {
     try {
-      const userId = req.userData.id;
-      const userRole = req.userData.roles;
+      const { id: userId, role: userRole } = req.userData;
       const { bookingId } = req.params;
 
-      // Check if booking exists
-      const booking = await Booking.findById(bookingId).populate("user");
-      if (!booking) {
-        return send.sendErrorMessage(res, 404, new Error("Booking not found"));
-      }
-
-      // Check if user has permission to access this booking
-      if (
-        userRole !== "admin" &&
-        userRole !== "staff" &&
-        booking.user._id.toString() !== userId
-      ) {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      // Check if conversation already exists
-      let conversation = await Conversation.findOne({
-        relatedBooking: bookingId,
-      })
-        .populate(
-          "participants.user",
-          "first_name last_name email role profilePic"
-        )
-        .populate("relatedBooking", "service date timeSlot status")
-        .populate("lastMessage.sender", "first_name last_name");
-
-      if (!conversation) {
-        // Create new conversation
-        const participants = [
-          {
-            user: booking.user._id,
-            role: "customer",
-          },
-        ];
-
-        // Only add staff/admin if they're not the same as the customer
-        if (userId !== booking.user._id.toString()) {
-          participants.push({
-            user: userId,
-            role: userRole,
-          });
-        }
-
-        conversation = new Conversation({
-          participants: participants,
-          relatedBooking: bookingId,
-          conversationType: "booking",
-          status: "active",
-        });
-
-        await conversation.save();
-        await conversation.populate([
-          {
-            path: "participants.user",
-            select: "first_name last_name email role profilePic",
-          },
-          {
-            path: "relatedBooking",
-            select: "service date timeSlot status",
-          },
-        ]);
-      } else {
-        // If conversation exists, make sure current user is a participant
-        const isParticipant = conversation.participants.some(
-          (p) => p.user._id.toString() === userId
+      const conversation =
+        await MessagingService.createOrGetBookingConversation(
+          bookingId,
+          userId,
+          userRole
         );
-
-        if (!isParticipant && userId !== booking.user._id.toString()) {
-          // Add current user as participant if they're not already and not the customer
-          conversation.participants.push({
-            user: userId,
-            role: userRole,
-          });
-          await conversation.save();
-          await conversation.populate([
-            {
-              path: "participants.user",
-              select: "first_name last_name email role profilePic",
-            },
-          ]);
-        }
-      }
 
       return send.sendResponseMessage(
         res,
@@ -159,74 +59,47 @@ class MessagingController {
       );
     } catch (error) {
       console.error("Get or create conversation error:", error);
-      return send.sendErrorMessage(res, 500, error);
+      const statusCode = error.message.includes("not found")
+        ? 404
+        : error.message.includes("Access denied")
+        ? 403
+        : 500;
+      return send.sendErrorMessage(res, statusCode, error);
     }
   }
 
-  // Get or create direct conversation (admin-staff)
+  // Get or create direct conversation (admin-staff only)
   async getOrCreateDirectConversation(req, res) {
     try {
-      const userId = req.userData.id;
-      const userRole = req.userData.roles;
+      const { id: userId, role: userRole } = req.userData;
       const { targetUserId } = req.params;
 
-      // Check if user has permission (only admin and staff can have direct conversations)
+      // Only admin and staff can have direct conversations
       if (userRole !== "admin" && userRole !== "staff") {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      // Check if participant exists and is admin or staff
-      const participant = await User.findById(targetUserId);
-      if (
-        !participant ||
-        (participant.role !== "admin" && participant.role !== "staff")
-      ) {
         return send.sendErrorMessage(
           res,
-          404,
-          new Error("Participant not found or invalid role")
+          403,
+          new Error("Access denied. Admin or staff privileges required.")
         );
       }
 
-      // Check if conversation already exists
-      let conversation = await Conversation.findOne({
-        conversationType: "direct",
-        $and: [
-          { "participants.user": userId },
-          { "participants.user": targetUserId },
-        ],
-      })
-        .populate(
-          "participants.user",
-          "first_name last_name email role profilePic"
-        )
-        .populate("lastMessage.sender", "first_name last_name");
-
-      if (!conversation) {
-        // Create new conversation
-        conversation = new Conversation({
-          participants: [
-            {
-              user: userId,
-              role: userRole,
-            },
-            {
-              user: targetUserId,
-              role: participant.role,
-            },
-          ],
-          conversationType: "direct",
-          status: "active",
-        });
-
-        await conversation.save();
-        await conversation.populate([
-          {
-            path: "participants.user",
-            select: "first_name last_name email role profilePic",
-          },
-        ]);
+      // Verify target user is admin or staff
+      const targetUser = await MessagingService.verifyDirectMessagingUser(
+        targetUserId
+      );
+      if (!targetUser) {
+        return send.sendErrorMessage(
+          res,
+          404,
+          new Error("Target user not found or invalid role")
+        );
       }
+
+      const conversation = await MessagingService.createOrGetDirectConversation(
+        userId,
+        targetUserId,
+        userRole
+      );
 
       return send.sendResponseMessage(
         res,
@@ -240,42 +113,21 @@ class MessagingController {
     }
   }
 
-  // Get messages for a conversation
+  // Get messages for a conversation with RBAC
   async getMessages(req, res) {
     try {
-      const userId = req.userData.id;
+      const { id: userId, role: userRole } = req.userData;
       const { conversationId } = req.params;
       const { page = 1, limit = 50 } = req.query;
 
-      // Check if conversation exists and user is participant
-      const conversation = await Conversation.findById(conversationId);
-      if (!conversation) {
-        return send.sendErrorMessage(
-          res,
-          404,
-          new Error("Conversation not found")
-        );
-      }
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.user.toString() === userId
-      );
-
-      if (!isParticipant) {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      // Get messages
-      const messages = await Messages.findByConversation(
+      const messages = await MessagingService.getMessages(
         conversationId,
-        parseInt(page),
-        parseInt(limit)
+        userId,
+        userRole,
+        { page: parseInt(page), limit: parseInt(limit) }
       );
 
-      // Mark messages as read
-      await Messages.markAllAsReadByUser(conversationId, userId);
-
-      // Notify other participants that messages were read
+      // Emit read status to other participants
       socketManager.emitToConversation(conversationId, "messages_read", {
         conversationId: conversationId,
         readBy: userId,
@@ -286,7 +138,7 @@ class MessagingController {
         res,
         200,
         {
-          messages: messages.reverse(),
+          messages,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
@@ -297,17 +149,19 @@ class MessagingController {
       );
     } catch (error) {
       console.error("Get messages error:", error);
-      return send.sendErrorMessage(res, 500, error);
+      const statusCode = error.message.includes("Access denied") ? 403 : 500;
+      return send.sendErrorMessage(res, statusCode, error);
     }
   }
 
-  // Send a message
+  // Send a message with RBAC validation
   async sendMessage(req, res) {
     try {
-      const userId = req.userData.id;
+      const { id: userId, role: userRole } = req.userData;
       const { conversationId } = req.params;
       const { content, messageType = "text", replyTo = null } = req.body;
 
+      // Validate content
       if (!content || content.trim() === "") {
         return send.sendErrorMessage(
           res,
@@ -316,54 +170,14 @@ class MessagingController {
         );
       }
 
-      // Check if conversation exists and user is participant
-      const conversation = await Conversation.findById(conversationId);
-      if (!conversation) {
-        return send.sendErrorMessage(
-          res,
-          404,
-          new Error("Conversation not found")
-        );
-      }
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.user.toString() === userId
+      const message = await MessagingService.sendMessage(
+        conversationId,
+        userId,
+        userRole,
+        { content, messageType, replyTo }
       );
 
-      if (!isParticipant) {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      // Create message with unreadBy field set to all other participants
-      const message = new Messages({
-        conversation: conversationId,
-        sender: userId,
-        content: content.trim(),
-        messageType,
-        replyTo: replyTo,
-        unreadBy: conversation.participants
-          .filter((p) => p.user.toString() !== userId)
-          .map((p) => p.user),
-      });
-
-      await message.save();
-      await message.populate("sender", "first_name last_name roles profilePic");
-
-      if (replyTo) {
-        await message.populate("replyTo", "content sender createdAt");
-      }
-
-      // Update conversation last message
-      conversation.lastMessage = {
-        sender: userId,
-        content: content.trim(),
-        messageType: messageType,
-        timestamp: message.createdAt,
-      };
-      conversation.updatedAt = new Date();
-      await conversation.save();
-
-      // Emit to all participants in the conversation room via socket
+      // Emit to conversation participants
       socketManager.emitToConversation(conversationId, "new_message", {
         conversationId,
         message: message.toObject(),
@@ -377,36 +191,29 @@ class MessagingController {
       );
     } catch (error) {
       console.error("Send message error:", error);
-      return send.sendErrorMessage(res, 500, error);
+      const statusCode = error.message.includes("Access denied") ? 403 : 500;
+      return send.sendErrorMessage(res, statusCode, error);
     }
   }
 
   // Mark messages as read
   async markAsRead(req, res) {
     try {
-      const userId = req.userData.id;
+      const { id: userId, role: userRole } = req.userData;
       const { conversationId } = req.params;
 
-      // Check if conversation exists and user is participant
-      const conversation = await Conversation.findById(conversationId);
-      if (!conversation) {
-        return send.sendErrorMessage(
-          res,
-          404,
-          new Error("Conversation not found")
-        );
-      }
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.user.toString() === userId
+      // Verify access to conversation
+      const { canAccess } = await MessagingService.canAccessConversation(
+        conversationId,
+        userId,
+        userRole
       );
 
-      if (!isParticipant) {
+      if (!canAccess) {
         return send.sendErrorMessage(res, 403, new Error("Access denied"));
       }
 
-      // Mark all messages as read
-      await Messages.markAllAsReadByUser(conversationId, userId);
+      await MessagingService.markConversationAsRead(conversationId, userId);
 
       // Notify other participants
       socketManager.emitToConversation(conversationId, "messages_read", {
@@ -415,7 +222,12 @@ class MessagingController {
         readAt: new Date(),
       });
 
-      return send.sendResponseMessage(res, 200, {}, "Messages marked as read");
+      return send.sendResponseMessage(
+        res,
+        200,
+        { readAt: new Date() },
+        "Messages marked as read"
+      );
     } catch (error) {
       console.error("Mark as read error:", error);
       return send.sendErrorMessage(res, 500, error);
@@ -425,132 +237,256 @@ class MessagingController {
   // Get staff and admin users for direct messaging
   async getStaffAndAdminUsers(req, res) {
     try {
-      const userId = req.userData.id;
-      const userRole = req.userData.roles;
+      const { id: userId, role: userRole } = req.userData;
 
-      // Only allow admin and staff to see this list
-      if (userRole !== "admin" && userRole !== "staff") {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      // Get all admin and staff users except current user
-      const users = await User.find({
-        _id: { $ne: userId },
-        role: { $in: ["admin", "staff"] },
-        isActive: true,
-      }).select("first_name last_name email role profilePic isOnline");
-
-      // Add online status
-      const usersWithStatus = users.map((user) => ({
-        ...user.toObject(),
-        isOnline: socketManager.isUserOnline(user._id),
-      }));
+      const users = await MessagingService.getMessagingUsers(userId, userRole);
 
       return send.sendResponseMessage(
         res,
         200,
-        usersWithStatus,
+        { users },
         "Users fetched successfully"
       );
     } catch (error) {
       console.error("Get staff and admin users error:", error);
-      return send.sendErrorMessage(res, 500, error);
+      const statusCode = error.message.includes("Access denied") ? 403 : 500;
+      return send.sendErrorMessage(res, statusCode, error);
     }
   }
 
-  // Get conversation statistics (for admins)
+  // Get conversation statistics (admin only)
   async getStats(req, res) {
     try {
-      const userRole = req.userData.roles;
+      const { role: userRole } = req.userData;
 
-      if (userRole !== "admin") {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      const totalConversations = await Conversation.countDocuments();
-      const activeConversations = await Conversation.countDocuments({
-        status: "active",
-      });
-      const totalMessages = await Messages.countDocuments({ isDeleted: false });
-      const todayMessages = await Messages.countDocuments({
-        isDeleted: false,
-        createdAt: {
-          $gte: new Date().setHours(0, 0, 0, 0),
-          $lt: new Date().setHours(23, 59, 59, 999),
-        },
-      });
-
-      const onlineUsers = socketManager.getOnlineUsers();
+      const stats = await MessagingService.getMessagingStats(userRole);
 
       return send.sendResponseMessage(
         res,
         200,
-        {
-          stats: {
-            totalConversations,
-            activeConversations,
-            totalMessages,
-            todayMessages,
-            onlineUsersCount: onlineUsers.length,
-          },
-        },
-        "Stats fetched successfully"
+        stats,
+        "Statistics fetched successfully"
       );
     } catch (error) {
       console.error("Get stats error:", error);
-      return send.sendErrorMessage(res, 500, error);
+      const statusCode = error.message.includes("Access denied") ? 403 : 500;
+      return send.sendErrorMessage(res, statusCode, error);
     }
   }
 
   // Delete a conversation (admin only)
   async deleteConversation(req, res) {
     try {
-      const userId = req.userData.id;
-      const userRole = req.userData.roles;
+      const { role: userRole } = req.userData;
       const { conversationId } = req.params;
 
-      // Check if conversation exists and user is participant
-      const conversation = await Conversation.findById(conversationId);
-      if (!conversation) {
-        return send.sendErrorMessage(
-          res,
-          404,
-          new Error("Conversation not found")
-        );
-      }
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.user.toString() === userId
-      );
-
-      if (!isParticipant) {
-        return send.sendErrorMessage(res, 403, new Error("Access denied"));
-      }
-
-      // Only admin can delete conversations
       if (userRole !== "admin") {
         return send.sendErrorMessage(
           res,
           403,
-          new Error("Only admin can delete conversations")
+          new Error("Access denied. Admin privileges required.")
         );
       }
 
-      // Delete all messages in the conversation
-      await Messages.deleteMany({ conversation: conversationId });
+      await MessagingService.deleteConversation(conversationId);
 
-      // Delete the conversation
-      await Conversation.findByIdAndDelete(conversationId);
+      // Notify participants
+      socketManager.emitToConversation(conversationId, "conversation_deleted", {
+        conversationId,
+        deletedAt: new Date(),
+      });
 
       return send.sendResponseMessage(
         res,
         200,
-        null,
+        { deletedAt: new Date() },
         "Conversation deleted successfully"
       );
     } catch (error) {
       console.error("Delete conversation error:", error);
       return send.sendErrorMessage(res, 500, error);
+    }
+  }
+
+  // Archive a conversation
+  async archiveConversation(req, res) {
+    try {
+      const { id: userId, role: userRole } = req.userData;
+      const { conversationId } = req.params;
+
+      const result = await MessagingService.archiveConversation(
+        conversationId,
+        userId,
+        userRole
+      );
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        result,
+        "Conversation archived successfully"
+      );
+    } catch (error) {
+      console.error("Archive conversation error:", error);
+      const statusCode = error.message.includes("Access denied") ? 403 : 500;
+      return send.sendErrorMessage(res, statusCode, error);
+    }
+  }
+
+  // Search messages (admin/staff only)
+  async searchMessages(req, res) {
+    try {
+      const { role: userRole } = req.userData;
+      const { query, page = 1, limit = 20 } = req.query;
+
+      if (userRole === "customer") {
+        return send.sendErrorMessage(
+          res,
+          403,
+          new Error("Access denied. Admin or staff privileges required.")
+        );
+      }
+
+      const results = await MessagingService.searchMessages(query, userRole, {
+        page: parseInt(page),
+        limit: parseInt(limit),
+      });
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        results,
+        "Search completed successfully"
+      );
+    } catch (error) {
+      console.error("Search messages error:", error);
+      return send.sendErrorMessage(res, 500, error);
+    }
+  }
+
+  // Staff-specific: Get all conversations accessible by staff
+  async getStaffConversations(req, res) {
+    try {
+      const { id: userId, role: userRole } = req.userData;
+      const { status = "active", page = 1, limit = 20 } = req.query;
+
+      const conversations = await MessagingService.getConversationsForUser(
+        userId,
+        userRole,
+        { status, page: parseInt(page), limit: parseInt(limit) }
+      );
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        {
+          conversations,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: conversations.length,
+          },
+        },
+        "Staff conversations fetched successfully"
+      );
+    } catch (error) {
+      console.error("Get staff conversations error:", error);
+      return send.sendErrorMessage(res, 500, error);
+    }
+  }
+
+  // Admin-specific: Get all conversations accessible by admin
+  async getAdminConversations(req, res) {
+    try {
+      const { id: userId, role: userRole } = req.userData;
+      const { status = "active", page = 1, limit = 20 } = req.query;
+
+      const conversations = await MessagingService.getConversationsForUser(
+        userId,
+        userRole,
+        { status, page: parseInt(page), limit: parseInt(limit) }
+      );
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        {
+          conversations,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: conversations.length,
+          },
+        },
+        "Admin conversations fetched successfully"
+      );
+    } catch (error) {
+      console.error("Get admin conversations error:", error);
+      return send.sendErrorMessage(res, 500, error);
+    }
+  }
+
+  // Get all staff members for admin to message
+  async getStaffList(req, res) {
+    try {
+      const { role: userRole } = req.userData;
+
+      // Only admins can get staff list
+      if (userRole !== "admin") {
+        return send.sendErrorMessage(
+          res,
+          403,
+          "Access denied: Admin role required"
+        );
+      }
+
+      const staffMembers = await MessagingService.getStaffList();
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        { staffMembers },
+        "Staff list fetched successfully"
+      );
+    } catch (error) {
+      console.error("Get staff list error:", error);
+      return send.sendErrorMessage(res, 500, error);
+    }
+  }
+
+  // Create or get direct conversation between admin and staff
+  async createDirectConversation(req, res) {
+    try {
+      const { id: adminId, role: userRole } = req.userData;
+      const { staffId } = req.body;
+
+      // Only admins can create direct conversations
+      if (userRole !== "admin") {
+        return send.sendErrorMessage(
+          res,
+          403,
+          "Access denied: Admin role required"
+        );
+      }
+
+      if (!staffId) {
+        return send.sendErrorMessage(res, 400, "Staff ID is required");
+      }
+
+      const conversation = await MessagingService.createOrGetDirectConversation(
+        adminId,
+        staffId
+      );
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        { conversation },
+        "Direct conversation created successfully"
+      );
+    } catch (error) {
+      console.error("Create direct conversation error:", error);
+      return send.sendErrorMessage(res, 500, error.message);
     }
   }
 }
