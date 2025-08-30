@@ -9,16 +9,21 @@ require("dotenv").config();
 
 require("./config/passport");
 
+// Production-ready session configuration
+const isProduction = process.env.NODE_ENV === "production";
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      secure: isProduction, // Use secure cookies in production (requires HTTPS)
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: isProduction ? "strict" : "lax",
     },
+    name: "sessionId", // Change default session name for security
   })
 );
 

@@ -8,6 +8,9 @@ const socketManager = require("./utils/SocketManager");
 
 const server = http.createServer(app);
 
+// Use Render's PORT or fallback to 3000 for local development
+const PORT = port || process.env.PORT || 3000;
+
 // Initialize Socket.IO with CORS settings
 const io = new Server(server, {
   cors: {
@@ -20,7 +23,7 @@ const io = new Server(server, {
 // Initialize socket manager with io instance
 socketManager.initialize(io);
 
-server.listen(port, () => {
-  console.log("Server is running on port: " + port);
+server.listen(PORT, () => {
+  console.log("Server is running on port: " + PORT);
   console.log("Socket.IO server initialized");
 });
