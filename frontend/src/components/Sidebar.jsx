@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import logo from "../assets/WashUpLogo.png";
 import {
   Sidebar,
   SidebarProvider,
@@ -96,7 +97,7 @@ const AppSidebar = ({ children }) => {
               {/* Logo - shows when expanded, Menu icon when collapsed */}
               <div className="group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:bg-red-500 group-data-[collapsible=icon]:rounded-lg flex items-center justify-center transition-all duration-200">
                 <img
-                  src="/src/assets/WashUpLogo.png"
+                  src={logo}
                   alt="WashUp Logo"
                   className="w-20 h-20 object-contain group-data-[collapsible=icon]:hidden"
                 />

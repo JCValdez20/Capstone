@@ -13,6 +13,8 @@ import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "sonner";
 
+import loginImage from "../../assets/login-page-image.jpg";
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -201,7 +203,7 @@ const Login = () => {
         <div className="relative w-full h-full overflow-hidden rounded-lg">
           <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-black/20 z-10 rounded-lg" />
           <img
-            src="/src/assets/login-page-image.jpg"
+            src={loginImage}
             alt="Login Background"
             className="w-full h-full object-cover rounded-lg"
           />

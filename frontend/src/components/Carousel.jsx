@@ -6,6 +6,12 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import carousel1 from "../assets/Carousel1.jpg";
+import carousel2 from "../assets/Carousel2.jpg";
+import carousel3 from "../assets/Carousel3.jpg";
+import carousel4 from "../assets/Carousel4.jpg";
+
+const carouselImages = [carousel1, carousel2, carousel3, carousel4];
 
 const Carousel = () => {
   const plugin = Autoplay({ delay: 4000 });
@@ -29,7 +35,7 @@ const Carousel = () => {
               <CarouselItem key={index} className="relative">
                 <div className="aspect-[16/9] relative overflow-hidden rounded-2xl shadow-2xl bg-black flex items-center justify-center">
                   <img
-                    src={`/src/assets/Carousel${index}.jpg`}
+                    src={carouselImages[index - 1]}
                     alt={`Slide ${index}`}
                     className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105"
                   />

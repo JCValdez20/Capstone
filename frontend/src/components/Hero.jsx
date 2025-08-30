@@ -1,3 +1,5 @@
+import motor from "../assets/Motorcycle.jpg";
+import logo from "../assets/WashUpLogo.png";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Link as ScrollLink } from "react-scroll";
@@ -10,7 +12,7 @@ const Hero = () => {
         <Card className="border-none shadow-xl overflow-hidden relative">
           <div className="absolute inset-0">
             <img
-              src="/src/assets/Motorcycle.jpg"
+              src={motor}
               alt="Background Motorcycle"
               className="w-full h-full object-cover object-center"
             />
@@ -21,7 +23,7 @@ const Hero = () => {
               <div className="relative">
                 <div className="absolute -inset-1 bg-red-600/20 rounded-full blur-2xl" />
                 <img
-                  src="/src/assets/WashUpLogo.png"
+                  src={logo}
                   alt="Wash Up MotMot Logo"
                   className="w-[400px] relative transform hover:scale-105 transition-transform duration-300"
                 />

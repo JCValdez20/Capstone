@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "sonner";
+import loginImage from "../../assets/login-page-image.jpg";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -259,7 +260,7 @@ const Register = () => {
         <div className="relative w-full h-full overflow-hidden rounded-lg">
           <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-black/20 z-10 rounded-lg" />
           <img
-            src="/src/assets/login-page-image.jpg"
+            src={loginImage}
             alt="Register Background"
             className="w-full h-full object-cover rounded-lg"
           />
