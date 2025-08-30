@@ -1,4 +1,5 @@
 import axios from "./axios";
+import SocketService from "./socketService";
 
 class MessagingService {
   // Helper method to get role-based endpoint prefix - SIMPLIFIED
@@ -32,17 +33,6 @@ class MessagingService {
     try {
       const prefix = this.getRoleBasedPrefix();
       const endpoint = `${prefix}/conversations`;
-
-      // DEBUG: Show endpoint and Authorization header
-      const staffToken = localStorage.getItem("staffToken");
-      const adminToken = localStorage.getItem("adminToken");
-      const userToken = localStorage.getItem("token");
-      let debugAuth = staffToken || adminToken || userToken || "none";
-      if (debugAuth.length > 20) debugAuth = debugAuth.substring(0, 20) + "...";
-      if (window && window.toast) window.toast(`[DEBUG] Endpoint: ${endpoint}`);
-      if (window && window.toast) window.toast(`[DEBUG] Auth: ${debugAuth}`);
-      console.log("[DEBUG] Calling endpoint:", endpoint);
-      console.log("[DEBUG] Auth header (truncated):", debugAuth);
 
       const response = await axios.get(endpoint, {
         params: { status, page, limit },

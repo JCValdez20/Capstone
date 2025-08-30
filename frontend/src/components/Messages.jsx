@@ -37,7 +37,7 @@ import messagingService from "@/services/messagingService";
 import socketService from "@/services/socketService";
 import { useAuth } from "@/hooks/useAuth";
 
-const Messages = () => {
+const Messages = ({ booking: initialBooking }) => {
   const { user, isAdmin, isStaff } = useAuth();
 
   const [conversations, setConversations] = useState([]);
@@ -105,13 +105,6 @@ const Messages = () => {
   const loadConversations = useCallback(async () => {
     try {
       setLoading(true);
-      // DEBUG: Show staff token and staff user
-      const staffUser = localStorage.getItem("staffUser");
-      const staffToken = localStorage.getItem("staffToken");
-      console.log("[DEBUG] staffUser:", staffUser);
-      console.log("[DEBUG] staffToken:", staffToken);
-      toast("[DEBUG] staffUser: " + staffUser);
-      toast("[DEBUG] staffToken: " + (staffToken ? staffToken.substring(0, 12) + "..." : "none"));
 
       const response = await getMessagingService().getConversations();
       let allConvos = response.data?.conversations || [];
@@ -121,39 +114,54 @@ const Messages = () => {
         // Find admin user
         let adminUser = null;
         if (staffAdminUsers.length > 0) {
-          adminUser = staffAdminUsers.find(u => u.roles === "admin");
+          adminUser = staffAdminUsers.find((u) => u.roles === "admin");
         } else {
           // fallback: try to load
           const usersResp = await getMessagingService().getStaffAndAdminUsers();
-          adminUser = (usersResp.data?.users || []).find(u => u.roles === "admin");
+          adminUser = (usersResp.data?.users || []).find(
+            (u) => u.roles === "admin"
+          );
         }
 
         let adminConversation = null;
         if (adminUser) {
           // Find direct conversation with admin
-          adminConversation = allConvos.find(c => {
+          adminConversation = allConvos.find((c) => {
             if (!c.participants) return false;
-            const roles = c.participants.map(p => p.user?.roles || p.user?.role);
-            return roles.includes("admin") && roles.includes("staff") && !c.relatedBooking;
+            const roles = c.participants.map(
+              (p) => p.user?.roles || p.user?.role
+            );
+            return (
+              roles.includes("admin") &&
+              roles.includes("staff") &&
+              !c.relatedBooking
+            );
           });
 
           // If not found, fetch/create it
           if (!adminConversation) {
-            const directResp = await getMessagingService().getDirectConversation(adminUser._id);
+            const directResp =
+              await getMessagingService().getDirectConversation(adminUser._id);
             if (directResp.data?.conversation) {
               adminConversation = directResp.data.conversation;
               // Add to allConvos if not present
-              if (!allConvos.some(c => c._id === adminConversation._id)) {
+              if (!allConvos.some((c) => c._id === adminConversation._id)) {
                 allConvos = [adminConversation, ...allConvos];
               }
             }
           }
 
           // Remove admin conversation from the rest (if present)
-          allConvos = allConvos.filter(c => {
+          allConvos = allConvos.filter((c) => {
             if (!c.participants) return true;
-            const roles = c.participants.map(p => p.user?.roles || p.user?.role);
-            return !(roles.includes("admin") && roles.includes("staff") && !c.relatedBooking);
+            const roles = c.participants.map(
+              (p) => p.user?.roles || p.user?.role
+            );
+            return !(
+              roles.includes("admin") &&
+              roles.includes("staff") &&
+              !c.relatedBooking
+            );
           });
 
           // Place admin conversation at the top
@@ -197,12 +205,43 @@ const Messages = () => {
     [getMessagingService]
   );
 
+  const handleBookingConversation = useCallback(async (booking) => {
+    try {
+      const response = await getMessagingService().getBookingConversation(
+        booking._id
+      );
+      const conversation = response.data?.conversation;
+
+      if (conversation) {
+        // Add to conversations list if not already there
+        const existingIndex = conversations.findIndex(
+          (c) => c._id === conversation._id
+        );
+        if (existingIndex === -1) {
+          setConversations((prev) => [conversation, ...prev]);
+        }
+        setSelectedConversation(conversation);
+        toast.success("Booking conversation loaded");
+      }
+    } catch (error) {
+      console.error("Error loading booking conversation:", error);
+      toast.error("Failed to load booking conversation");
+    }
+  }, [conversations, getMessagingService]);
+
   useEffect(() => {
     loadConversations();
     if (isAdmin || isStaff) {
       loadStaffAdminUsers();
     }
   }, [isAdmin, isStaff, loadConversations, loadStaffAdminUsers]);
+
+  // Handle booking conversation creation when component mounts with a booking
+  useEffect(() => {
+    if (initialBooking && !loading) {
+      handleBookingConversation(initialBooking);
+    }
+  }, [initialBooking, loading, handleBookingConversation]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -273,8 +312,10 @@ const Messages = () => {
         const staffToken = localStorage.getItem("staffToken");
         const userToken = localStorage.getItem("token");
         let token = userToken;
-        if (currentPath.includes("/admin")) token = adminToken || staffToken || userToken;
-        else if (currentPath.includes("/staff")) token = staffToken || adminToken || userToken;
+        if (currentPath.includes("/admin"))
+          token = adminToken || staffToken || userToken;
+        else if (currentPath.includes("/staff"))
+          token = staffToken || adminToken || userToken;
         if (token) socketService.connect(token);
       }
 
@@ -310,7 +351,9 @@ const Messages = () => {
       setConversations((prevConvos) => {
         let found = false;
         const updated = prevConvos.map((c) =>
-          c._id === data.conversationId ? { ...c, lastMessage: data.message } : c
+          c._id === data.conversationId
+            ? { ...c, lastMessage: data.message }
+            : c
         );
         if (!found && data.conversation) {
           return [data.conversation, ...updated];
@@ -704,16 +747,6 @@ const Messages = () => {
                         const currentUserRole = currentContext.role;
                         const messageFromSameRoleContext =
                           isOwn && message.senderRole === currentUserRole;
-
-                        // Debug logging
-                        if (isOwn) {
-                          console.log("Debug - Own message detected:", {
-                            currentUserRole,
-                            messageSenderRole: message.senderRole,
-                            messageFromSameRoleContext,
-                            isOwn,
-                          });
-                        }
 
                         // Get sender info
                         const senderName = `${

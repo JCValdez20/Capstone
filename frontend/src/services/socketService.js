@@ -8,13 +8,10 @@ class SocketService {
 
   connect(token) {
     if (this.socket && this.connected) {
-      console.log("Socket already connected, returning existing socket");
       return this.socket;
     }
 
     const serverUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-    console.log("Connecting to socket server:", serverUrl);
-    console.log("With token:", token ? "✓" : "✗");
 
     this.socket = io(serverUrl, {
       auth: {
@@ -26,17 +23,14 @@ class SocketService {
     this.socket.connect();
 
     this.socket.on("connect", () => {
-      console.log("✅ Socket connected:", this.socket.id);
       this.connected = true;
     });
 
     this.socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
       this.connected = false;
     });
 
-    this.socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
+    this.socket.on("connect_error", () => {
       this.connected = false;
     });
 
@@ -54,14 +48,12 @@ class SocketService {
   joinConversation(conversationId) {
     if (this.socket && this.connected) {
       this.socket.emit("join_conversation", conversationId);
-      console.log("👥 Joined conversation:", conversationId);
     }
   }
 
   leaveConversation(conversationId) {
     if (this.socket && this.connected) {
       this.socket.emit("leave_conversation", conversationId);
-      console.log("👋 Left conversation:", conversationId);
     }
   }
 

@@ -584,18 +584,6 @@ const StaffManagement = () => {
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="edit_email">Email</Label>
-              <Input
-                id="edit_email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, email: e.target.value }))
-                }
-                required
-              />
-            </div>
             <DialogFooter>
               <Button
                 type="button"
