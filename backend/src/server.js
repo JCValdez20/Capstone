@@ -1,29 +1,15 @@
 require("dotenv").config();
-const http = require("http");
-const express = require("express");
 const app = require("./app");
 const { port } = require("./config/config");
-const { Server } = require("socket.io");
-const socketManager = require("./utils/SocketManager");
+const { setupSocketIO } = require("./utils/Socket");
 
-const server = http.createServer(app);
+// Setup Socket.IO with the Express app
+const { io, server } = setupSocketIO(app);
 
-// Use Render's PORT or fallback to 3000 for local development
-const PORT = port || process.env.PORT || 3000;
+// Make io available globally for other parts of the app
+global.io = io;
 
-// Initialize Socket.IO with CORS settings
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
-
-// Initialize socket manager with io instance
-socketManager.initialize(io);
-
-server.listen(PORT, () => {
-  console.log("Server is running on port: " + PORT);
-  console.log("Socket.IO server initialized");
+server.listen(port, () => {
+  console.log("Server is running on port: " + port);
+  console.log("Socket.IO server is ready");
 });

@@ -1,6 +1,6 @@
 require("dotenv").config();
 
 module.exports = {
-  port: process.env.PORT || 3000, // Fallback to 3000 if PORT not set
+  port: process.env.PORT,
   mongoURI: process.env.MONGO_URI,
 };

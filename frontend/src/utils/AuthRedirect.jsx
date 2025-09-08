@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const AuthRedirect = ({ children, redirectPath = "/dashboard" }) => {
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -21,7 +21,7 @@ const AuthRedirect = ({ children, redirectPath = "/dashboard" }) => {
     );
   }
 
-  if (isLoggedIn) {
+  if (isAuthenticated()) {
     return <Navigate to={redirectPath} replace state={{ from: location }} />;
   }
 

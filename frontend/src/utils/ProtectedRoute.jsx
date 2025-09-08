@@ -4,7 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const ProtectedRoute = () => {
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -32,7 +32,7 @@ const ProtectedRoute = () => {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!isAuthenticated()) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

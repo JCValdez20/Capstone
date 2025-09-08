@@ -51,7 +51,8 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login({ email, password }, "customer");
+
       if (result.success) {
         toast.success("Welcome back!", {
           description: "Successfully logged in. Redirecting to dashboard...",
@@ -66,16 +67,20 @@ const Login = () => {
           return;
         }
 
-        setError(result.message);
+        setError(result.error || "Login failed");
         toast.error("Login failed", {
           description:
-            result.message || "Please check your credentials and try again.",
+            result.error || "Please check your credentials and try again.",
         });
       }
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "An unexpected error occurred";
+      setError(errorMessage);
       toast.error("Login error", {
-        description: "An unexpected error occurred. Please try again.",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);

@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -69,11 +69,12 @@ const AdminBookings = () => {
     rejected: true,
     "no-show": true,
   });
+  const { getAllBookings, updateBookingStatus, updateBooking } = useAuth();
 
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await adminService.getAllBookings();
+      const response = await getAllBookings();
 
       let bookingsData = [];
 
@@ -101,7 +102,7 @@ const AdminBookings = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getAllBookings]);
 
   useEffect(() => {
     fetchBookings();
@@ -110,7 +111,7 @@ const AdminBookings = () => {
   const handleStatusUpdate = async (bookingId, status, notes = "") => {
     try {
       setIsUpdating(true);
-      await adminService.updateBookingStatus(bookingId, status, notes);
+      await updateBookingStatus(bookingId, status, notes);
 
       const currentBookings = Array.isArray(bookings) ? bookings : [];
       setBookings(
@@ -162,7 +163,7 @@ const AdminBookings = () => {
 
     try {
       setIsUpdating(true);
-      await adminService.updateBookingStatus(
+      await updateBookingStatus(
         bookingToReject._id,
         "rejected",
         "",
@@ -203,7 +204,7 @@ const AdminBookings = () => {
 
     try {
       setIsUpdating(true);
-      await adminService.updateBooking(editingBooking._id, editingBooking);
+      await updateBooking(editingBooking._id, editingBooking);
 
       const currentBookings = Array.isArray(bookings) ? bookings : [];
       setBookings(

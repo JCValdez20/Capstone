@@ -13,7 +13,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, Shield, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
@@ -24,13 +24,14 @@ const AdminLogin = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login, isAdminAuthenticated } = useAuth();
 
   // Check if admin is already authenticated
   useEffect(() => {
-    if (adminService.isAdminAuthenticated()) {
+    if (isAdminAuthenticated()) {
       navigate("/admin/dashboard", { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, isAdminAuthenticated]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -52,37 +53,27 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      const response = await adminService.login(
-        formData.email,
-        formData.password
-      );
+      const result = await login(formData, "admin");
 
-      // Check if the logged in user is admin
-      const userRole = response.user.role || response.user.roles;
-
-      if (userRole !== "admin") {
-        if (userRole === "staff") {
-          setError(
-            "Access denied. This is the admin login portal. Staff accounts should use the Staff login portal."
-          );
-        } else {
-          setError("Access denied. Administrator privileges required.");
-        }
-        return;
+      if (result.success) {
+        toast.success("Admin login successful!", {
+          description: "Welcome to the admin dashboard!",
+        });
+        navigate("/admin/dashboard", { replace: true });
+      } else {
+        setError(result.error || "Login failed");
+        toast.error("Login failed", {
+          description:
+            result.error || "Please check your credentials and try again.",
+        });
       }
-
-      toast.success("Admin login successful", {
-        description: "Welcome to the admin dashboard!",
-      });
-
-      // Redirect to admin dashboard
-      navigate("/admin/dashboard", { replace: true });
     } catch (error) {
-      const errorMessage = error.message || "Login failed. Please try again.";
+      const errorMessage =
+        error.response?.data?.message || error.message || "Login failed";
       setError(errorMessage);
       toast.error("Login failed", {
         description:
-          error.message || "Please check your credentials and try again.",
+          errorMessage || "Please check your credentials and try again.",
       });
     } finally {
       setIsLoading(false);

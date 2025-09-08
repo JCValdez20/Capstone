@@ -1,27 +1,24 @@
 const express = require("express");
 const router = express.Router();
 const BookingController = require("../controllers/BookingController");
-const Auth = require("../middleware/auth");
-const Roles = require("../middleware/roles");
+const userGuard = require("../middleware/User-Guard");
 
-// User routes
-router.post("/create", Roles.anyAuth(), BookingController.createBooking);
-router.get("/my-bookings", Roles.anyAuth(), BookingController.getUserBookings);
-router.get("/available-slots/:date", BookingController.getAvailableSlots);
-router.patch("/cancel/:id", Roles.anyAuth(), BookingController.cancelBooking);
-
-// Admin routes
-router.get("/all", Roles.admin(), BookingController.getAllBookings);
+// Customer routes - require authentication
+router.post("/create", userGuard("customer"), BookingController.createBooking);
+router.get(
+  "/my-bookings",
+  userGuard("customer"),
+  BookingController.getUserBookings
+);
 router.patch(
-  "/update-status/:id",
-  Roles.admin(),
-  BookingController.updateBookingStatus
+  "/cancel/:id",
+  userGuard("customer"),
+  BookingController.cancelBooking
 );
-router.get("/stats", Roles.admin(), BookingController.getBookingStats);
-router.post(
-  "/initialize-conversations",
-  Roles.admin(),
-  BookingController.initializeConversations
-);
+
+// Public routes - no authentication required
+router.get("/available-slots/:date", BookingController.getAvailableSlots);
+
+// Note: Admin/Staff booking management routes are in AdminRoutes.js for better organization
 
 module.exports = router;

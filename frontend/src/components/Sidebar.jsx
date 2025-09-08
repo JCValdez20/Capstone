@@ -50,7 +50,6 @@ const AppSidebar = ({ children }) => {
   const email = currentUser.email || "user@example.com";
   const initials =
     `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
-  const profilePic = currentUser.profilePic || "";
 
   // Memoized navigation items
   const navItems = useMemo(
@@ -67,20 +66,12 @@ const AppSidebar = ({ children }) => {
         path: "/booking-history",
         tooltip: "Booking History",
       },
-      {
-        icon: MessageCircle,
-        label: "Messages",
-        path: "/messages",
-        tooltip: "Messages & Chat",
-      },
     ],
     []
   );
 
   // Simple key for Avatar - changes when user data changes
-  const avatarKey = `avatar-${firstName}-${lastName}-${profilePic?.slice(
-    -10
-  )}-${forceUpdateTrigger}`;
+  const avatarKey = `avatar-${firstName}-${lastName}-${forceUpdateTrigger}`;
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -160,11 +151,6 @@ const AppSidebar = ({ children }) => {
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors duration-200 group-data-[collapsible=icon]:justify-center">
                   <Avatar key={avatarKey} className="w-8 h-8 shrink-0">
-                    <AvatarImage
-                      src={profilePic}
-                      alt={fullName}
-                      className="object-cover"
-                    />
                     <AvatarFallback className="bg-slate-200 text-slate-700 text-sm font-medium">
                       {initials}
                     </AvatarFallback>

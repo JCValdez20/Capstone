@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Mail, Calendar, Shield, User } from "lucide-react";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -19,22 +19,23 @@ const UserManagement = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
+  const { getAllUsers } = useAuth();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await adminService.getAllUsers();
-      setUsers(response.data || []);
+      const response = await getAllUsers();
+      setUsers(response.data || response || []);
     } catch (error) {
       setError("Failed to fetch users: " + (error.message || "Unknown error"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllUsers]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =

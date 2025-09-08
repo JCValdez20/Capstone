@@ -4,17 +4,7 @@ class BookingService {
   // Create a new booking
   async createBooking(bookingData) {
     try {
-      // Ensure we use the user token for bookings
-      const userToken = localStorage.getItem("token");
-      if (!userToken) {
-        throw new Error("No authentication token found. Please log in again.");
-      }
-
-      const response = await axios.post("/bookings/create", bookingData, {
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
-      });
+      const response = await axios.post("/bookings/create", bookingData);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -24,17 +14,8 @@ class BookingService {
   // Get user's bookings
   async getUserBookings(params = {}) {
     try {
-      // Ensure we use the user token for fetching user bookings
-      const userToken = localStorage.getItem("token");
-      if (!userToken) {
-        throw new Error("No authentication token found. Please log in again.");
-      }
-
       const response = await axios.get("/bookings/my-bookings", {
         params,
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
       });
       return response.data;
     } catch (error) {
@@ -48,19 +29,8 @@ class BookingService {
       const formattedDate =
         typeof date === "string" ? date : date.toISOString().split("T")[0];
 
-      // Use user token for consistency
-      const userToken = localStorage.getItem("token");
-      if (!userToken) {
-        throw new Error("No authentication token found. Please log in again.");
-      }
-
       const response = await axios.get(
-        `/bookings/available-slots/${formattedDate}`,
-        {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-          },
-        }
+        `/bookings/available-slots/${formattedDate}`
       );
 
       // Transform the response to match frontend expectations
@@ -74,46 +44,42 @@ class BookingService {
   // Cancel a booking
   async cancelBooking(bookingId) {
     try {
-      // Ensure we use the user token for canceling bookings
-      const userToken = localStorage.getItem("token");
-      if (!userToken) {
-        throw new Error("No authentication token found. Please log in again.");
-      }
-
-      const response = await axios.patch(
-        `/bookings/cancel/${bookingId}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-          },
-        }
-      );
+      const response = await axios.patch(`/bookings/cancel/${bookingId}`, {});
       return response.data;
     } catch (error) {
       throw this.handleError(error);
     }
   }
 
-  // Admin: Get all bookings
+  // Admin/Staff: Get all bookings
   async getAllBookings(params = {}) {
     try {
-      const response = await axios.get("/bookings/all", { params });
+      const response = await axios.get("/admin/bookings", { params });
       return response.data;
     } catch (error) {
       throw this.handleError(error);
     }
   }
 
-  // Admin: Update booking status
+  // Admin/Staff: Update booking status
   async updateBookingStatus(bookingId, status, notes = "") {
     try {
-      const response = await axios.patch(
-        `/bookings/update-status/${bookingId}`,
-        {
-          status,
-          notes,
-        }
+      const response = await axios.put(`/admin/bookings/${bookingId}/status`, {
+        status,
+        notes,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Admin/Staff: Update entire booking
+  async updateBooking(bookingId, bookingData) {
+    try {
+      const response = await axios.put(
+        `/admin/bookings/${bookingId}`,
+        bookingData
       );
       return response.data;
     } catch (error) {
@@ -121,10 +87,10 @@ class BookingService {
     }
   }
 
-  // Admin: Get booking statistics
+  // Admin/Staff: Get booking statistics
   async getBookingStats() {
     try {
-      const response = await axios.get("/bookings/stats");
+      const response = await axios.get("/admin/bookings/stats");
       return response.data;
     } catch (error) {
       throw this.handleError(error);

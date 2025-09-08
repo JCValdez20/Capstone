@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
 const AdminDashboard = () => {
@@ -16,22 +16,19 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [now, setNow] = useState(new Date());
+  const { getAllUsers, getAllBookings } = useAuth();
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const [usersRes, bookingsRes] = await Promise.all([
-        adminService.getAllUsers(),
-        adminService.getAllBookings(),
+        getAllUsers(),
+        getAllBookings(),
       ]);
 
       const usersData = usersRes?.data || usersRes || [];
@@ -53,7 +50,11 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllUsers, getAllBookings]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const totalUsers = users.length;
   const adminCount = users.filter((u) => u.roles === "admin").length;

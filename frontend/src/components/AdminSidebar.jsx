@@ -38,17 +38,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "react-router-dom";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminSidebar = ({ children }) => {
   const location = useLocation();
+  const { getCurrentAdmin, getCurrentStaff, logout } = useAuth();
 
   // Determine the current user based on the current path
   const isStaffRoute = location.pathname.startsWith("/staff");
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  const currentAdmin = adminService.getCurrentAdmin();
-  const currentStaff = adminService.getCurrentStaff();
+  const currentAdmin = getCurrentAdmin();
+  const currentStaff = getCurrentStaff();
 
   // Authentication validation based on route
   useEffect(() => {
@@ -79,14 +80,14 @@ const AdminSidebar = ({ children }) => {
   const handleLogout = () => {
     // Determine which session to logout based on current route
     if (isStaffRoute && currentStaff) {
-      adminService.logout("staff");
+      logout("staff");
       window.location.href = "/staff/login";
     } else if (isAdminRoute && currentAdmin) {
-      adminService.logout("admin");
+      logout("admin");
       window.location.href = "/admin/login";
     } else {
       // Fallback: logout all sessions
-      adminService.logout();
+      logout();
       window.location.href = "/";
     }
   };

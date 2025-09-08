@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { AuthProvider } from "./context/AuthProvider.jsx";
 import { Toaster } from "./components/ui/sonner.jsx";
+import AuthInitializer from "./components/AuthInitializer.jsx";
 
 import "./index.css";
 
@@ -30,7 +30,6 @@ import StaffUserManagement from "./pages/staff/dashboard/StaffUserManagement.jsx
 import StaffBookings from "./pages/staff/dashboard/StaffBookings.jsx";
 import StaffMessages from "./pages/staff/dashboard/StaffMessages.jsx";
 import AdminMessages from "./pages/admin/dashboard/AdminMessages.jsx";
-import UserMessages from "./pages/user/dashboard/UserMessages.jsx";
 import AdminSidebar from "./components/AdminSidebar.jsx";
 
 const router = createBrowserRouter([
@@ -171,14 +170,7 @@ const router = createBrowserRouter([
           </AppSidebar>
         ),
       },
-      {
-        path: "/messages",
-        element: (
-          <AppSidebar>
-            <UserMessages />
-          </AppSidebar>
-        ),
-      },
+
       {
         path: "/profile",
         element: (
@@ -193,9 +185,9 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <AuthProvider>
+    <AuthInitializer>
       <RouterProvider router={router} />
       <Toaster />
-    </AuthProvider>
+    </AuthInitializer>
   </StrictMode>
 );

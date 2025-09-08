@@ -3,6 +3,7 @@ const argon2 = require("argon2");
 const jwt = require("jsonwebtoken");
 const send = require("../utils/Response");
 const EmailService = require("../utils/EmailService");
+const JwtService = require("../utils/JwtService");
 
 exports.userLogin = async (req, res) => {
   try {
@@ -26,32 +27,23 @@ exports.userLogin = async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        roles: user.roles,
-        first_name: user.first_name,
-        last_name: user.last_name,
-      },
-      process.env.SECRET_KEY,
-      {
-        expiresIn: "1h",
-      }
-    );
+    // Generate JWT tokens
+    const { accessToken, refreshToken } = JwtService.generateTokens(user);
 
-    // Return ALL user data from database (excluding password)
+    // Set HttpOnly cookies
+    JwtService.setTokenCookies(res, accessToken, refreshToken);
+
+    // Return user data (excluding password and tokens)
     return res.status(200).json({
-      token,
+      success: true,
+      message: "Login successful",
       user: {
         id: user._id,
         first_name: user.first_name,
         last_name: user.last_name,
         name: `${user.first_name} ${user.last_name}`,
         email: user.email,
-        role: user.roles,
         roles: user.roles,
-        profilePic: user.profilePic || "", // This will include any updated profilePic
         isGoogleUser: user.isGoogleUser || false,
         isVerified: user.isVerified,
       },
@@ -81,32 +73,23 @@ exports.adminLogin = async (req, res) => {
       return res.status(400).json({ message: "Invalid Password" });
     }
 
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        roles: user.roles,
-        first_name: user.first_name,
-        last_name: user.last_name,
-      },
-      process.env.SECRET_KEY,
-      {
-        expiresIn: "8h", // Longer session for admin
-      }
-    );
+    // Generate JWT tokens
+    const { accessToken, refreshToken } = JwtService.generateTokens(user);
 
-    // Return ALL user data from database (excluding password)
+    // Set HttpOnly cookies
+    JwtService.setTokenCookies(res, accessToken, refreshToken);
+
+    // Return user data (excluding password and tokens)
     return res.status(200).json({
-      token,
+      success: true,
+      message: "Admin login successful",
       user: {
         id: user._id,
         first_name: user.first_name,
         last_name: user.last_name,
         name: `${user.first_name} ${user.last_name}`,
         email: user.email,
-        role: user.roles,
         roles: user.roles,
-        profilePic: user.profilePic || "", // This will include any updated profilePic
         isGoogleUser: user.isGoogleUser || false,
       },
     });
@@ -360,49 +343,6 @@ exports.updateProfile = async (req, res) => {
       200,
       updatedUser,
       "Profile updated successfully"
-    );
-  } catch (error) {
-    return send.sendErrorMessage(res, 500, error);
-  }
-};
-
-exports.updateProfilePicture = async (req, res) => {
-  try {
-    const userId = req.userData.id;
-    const { profilePic } = req.body;
-
-    // Safety check: Ensure we're not updating admin profiles through user routes
-    if (req.userData.roles === "admin") {
-      return send.sendErrorMessage(
-        res,
-        403,
-        new Error("Admin profiles must be updated through admin routes")
-      );
-    }
-
-    if (!profilePic) {
-      return send.sendErrorMessage(
-        res,
-        400,
-        new Error("Profile picture URL is required")
-      );
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profilePic },
-      { new: true, runValidators: true }
-    ).select("-password");
-
-    if (!updatedUser) {
-      return send.sendErrorMessage(res, 404, new Error("User not found"));
-    }
-
-    return send.sendResponseMessage(
-      res,
-      200,
-      updatedUser, // Return the full user object
-      "Profile picture updated successfully"
     );
   } catch (error) {
     return send.sendErrorMessage(res, 500, error);

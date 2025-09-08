@@ -1,8 +1,7 @@
 const Booking = require("../models/Booking");
 const User = require("../models/User"); // Import User model to ensure it's registered
-const Conversation = require("../models/Conversation"); // Import Conversation model
+
 const send = require("../utils/Response");
-const socketManager = require("../utils/SocketManager");
 
 // Helper function to update timestamps
 const updateTimestamp = (bookingData) => {
@@ -103,9 +102,7 @@ exports.createBooking = async (req, res) => {
       return send.sendErrorMessage(res, 404, "User not found");
     }
 
-    // Temporarily allow admin users to create bookings for testing
-    // TODO: Re-enable this restriction for production
-    /*
+    // Prevent admin users from creating bookings - only customers can create bookings
     if (user.roles === "admin") {
       return send.sendErrorMessage(
         res,
@@ -113,7 +110,15 @@ exports.createBooking = async (req, res) => {
         "Admin users cannot create bookings. Only customers can make bookings."
       );
     }
-    */
+
+    // Prevent staff users from creating bookings - only customers can create bookings
+    if (user.roles === "staff") {
+      return send.sendErrorMessage(
+        res,
+        403,
+        "Staff users cannot create bookings. Only customers can make bookings."
+      );
+    }
 
     // Check if user email is verified
     if (!user.isVerified) {
@@ -203,39 +208,44 @@ exports.createBooking = async (req, res) => {
 
     // 🚀 REAL-TIME: Emit new booking notification to admin/staff
     try {
-      const bookingWithUser = await Booking.findById(booking._id).populate('user', 'first_name last_name email');
-      
-      socketManager.emitToAdmins('new_booking_created', {
+      const bookingWithUser = await Booking.findById(booking._id).populate(
+        "user",
+        "first_name last_name email"
+      );
+
+      socketManager.emitToAdmins("new_booking_created", {
         bookingId: booking._id,
         customer: {
           name: `${user.first_name} ${user.last_name}`,
-          email: user.email
+          email: user.email,
         },
         service: booking.service,
         date: booking.date,
         timeSlot: booking.timeSlot,
         status: booking.status,
         createdAt: booking.createdAt,
-        booking: bookingWithUser
+        booking: bookingWithUser,
       });
 
-      socketManager.emitToStaff('new_booking_created', {
+      socketManager.emitToStaff("new_booking_created", {
         bookingId: booking._id,
         customer: {
           name: `${user.first_name} ${user.last_name}`,
-          email: user.email
+          email: user.email,
         },
         service: booking.service,
         date: booking.date,
         timeSlot: booking.timeSlot,
         status: booking.status,
         createdAt: booking.createdAt,
-        booking: bookingWithUser
+        booking: bookingWithUser,
       });
 
-      console.log(`🔔 Real-time notification sent for new booking ${booking._id}`);
+      console.log(
+        `🔔 Real-time notification sent for new booking ${booking._id}`
+      );
     } catch (socketError) {
-      console.error('Socket.IO emission error:', socketError);
+      console.error("Socket.IO emission error:", socketError);
     }
 
     return send.sendResponseMessage(
@@ -249,16 +259,24 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-// Get user bookings
+// Get user bookings (Customer only) - Users can only see their own bookings
 exports.getUserBookings = async (req, res) => {
   try {
     const userId = req.userData.id;
+
+    // Ensure only customers can access their bookings
+    if (req.userData.roles !== "customer") {
+      return send.sendErrorMessage(
+        res,
+        403,
+        "Only customers can view their bookings"
+      );
+    }
 
     const bookings = await Booking.find({ user: userId }).sort({
       date: -1,
       createdAt: -1,
     });
-    // Remove populate to avoid schema issues
 
     return send.sendResponseMessage(
       res,
@@ -341,16 +359,30 @@ exports.getAllBookings = async (req, res) => {
   }
 };
 
-// Cancel booking (User) - FREES UP THE SLOT IMMEDIATELY
+// Cancel booking (Customer only) - FREES UP THE SLOT IMMEDIATELY
 exports.cancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userData.id;
 
+    // Ensure only customers can cancel bookings
+    if (req.userData.roles !== "customer") {
+      return send.sendErrorMessage(
+        res,
+        403,
+        "Only customers can cancel their own bookings"
+      );
+    }
+
+    // Find booking that belongs to the authenticated user
     const booking = await Booking.findOne({ _id: id, user: userId });
 
     if (!booking) {
-      return send.sendErrorMessage(res, 404, "Booking not found");
+      return send.sendErrorMessage(
+        res,
+        404,
+        "Booking not found or you don't have permission to cancel this booking"
+      );
     }
 
     if (booking.status !== "pending" && booking.status !== "confirmed") {
@@ -471,38 +503,44 @@ exports.updateBookingStatus = async (req, res) => {
     try {
       // Notify the customer who owns the booking
       if (updatedBooking.user) {
-        socketManager.emitToUser(updatedBooking.user._id || updatedBooking.user, 'booking_status_updated', {
-          bookingId: updatedBooking._id,
-          status: updatedBooking.status,
-          message: message,
-          updatedBy: updatedByUser,
-          updatedAt: new Date(),
-          booking: updatedBooking
-        });
+        socketManager.emitToUser(
+          updatedBooking.user._id || updatedBooking.user,
+          "booking_status_updated",
+          {
+            bookingId: updatedBooking._id,
+            status: updatedBooking.status,
+            message: message,
+            updatedBy: updatedByUser,
+            updatedAt: new Date(),
+            booking: updatedBooking,
+          }
+        );
       }
 
       // Notify all admin/staff users about the update
-      socketManager.emitToAdmins('booking_status_updated', {
+      socketManager.emitToAdmins("booking_status_updated", {
         bookingId: updatedBooking._id,
         status: updatedBooking.status,
         message: message,
         updatedBy: updatedByUser,
         updatedAt: new Date(),
-        booking: updatedBooking
+        booking: updatedBooking,
       });
 
-      socketManager.emitToStaff('booking_status_updated', {
+      socketManager.emitToStaff("booking_status_updated", {
         bookingId: updatedBooking._id,
         status: updatedBooking.status,
         message: message,
         updatedBy: updatedByUser,
         updatedAt: new Date(),
-        booking: updatedBooking
+        booking: updatedBooking,
       });
 
-      console.log(`🔔 Real-time notification sent for booking ${updatedBooking._id} status change to ${status}`);
+      console.log(
+        `🔔 Real-time notification sent for booking ${updatedBooking._id} status change to ${status}`
+      );
     } catch (socketError) {
-      console.error('Socket.IO emission error:', socketError);
+      console.error("Socket.IO emission error:", socketError);
       // Don't fail the request if socket emission fails
     }
 

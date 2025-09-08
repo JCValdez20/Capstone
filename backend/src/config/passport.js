@@ -18,7 +18,6 @@ passport.use(
         const [first_name, last_name = "User"] = profile.displayName?.split(
           " "
         ) || ["Google"];
-        const profilePic = profile.photos?.[0]?.value || "";
 
         const user = await User.findOneAndUpdate(
           { email },
@@ -30,7 +29,6 @@ passport.use(
               roles: "customer",
               isGoogleUser: true,
               googleId: profile.id,
-              profilePic,
               isVerified: true, // Google users are automatically verified
             },
           },
@@ -45,17 +43,7 @@ passport.use(
   )
 );
 
-// Serialization
-passport.serializeUser((user, done) => done(null, user._id));
-
-// Updated deserialization without callback
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (err) {
-    done(err);
-  }
-});
+// Note: Serialization/deserialization removed as we're using stateless JWT authentication
+// No session management needed with JWT-only approach
 
 module.exports = passport;

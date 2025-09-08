@@ -1,55 +1,62 @@
 const jwt = require("jsonwebtoken");
 const send = require("../utils/Response");
+const JwtService = require("../utils/JwtService");
 
-module.exports = (req, res, next) => {
-  try {
-    if (!req.headers.authorization) {
-      return send.sendErrorMessage(
-        res,
-        401,
-        new Error("No authorization header provided")
-      );
+/**
+ * Efficient Role-Based Authentication Middleware using JWT from HttpOnly cookies
+ * @param {string|string[]|null} allowedRoles - Roles allowed access (null = any authenticated user)
+ * @returns {Function} Express middleware
+ */
+module.exports = (allowedRoles = null) => {
+  return (req, res, next) => {
+    try {
+      // Extract token from HttpOnly cookie
+      const { accessToken } = JwtService.extractTokensFromCookies(req);
+
+      if (!accessToken) {
+        return send.sendErrorMessage(
+          res,
+          401,
+          new Error("Access token not found")
+        );
+      }
+
+      // Verify and extract user data
+      const decoded = JwtService.verifyAccessToken(accessToken);
+      const userRole = decoded.roles || decoded.role || "customer";
+
+      // Set standardized user data
+      req.userData = {
+        id: decoded.id,
+        userId: decoded.id,
+        email: decoded.email,
+        roles: userRole,
+        first_name: decoded.first_name,
+        last_name: decoded.last_name,
+      };
+
+      // Role-based authorization (if roles specified)
+      if (allowedRoles) {
+        const roles = Array.isArray(allowedRoles)
+          ? allowedRoles
+          : [allowedRoles];
+
+        const hasAccess =
+          roles.includes(userRole) ||
+          (userRole === "admin" && !roles.includes("customer")); // Admin has access except when specifically requiring customer role
+
+        if (!hasAccess) {
+          return send.sendErrorMessage(res, 403, new Error("Access denied"));
+        }
+      }
+
+      next();
+    } catch (error) {
+      const message =
+        error.name === "TokenExpiredError"
+          ? "Access token expired"
+          : "Invalid access token";
+      return send.sendErrorMessage(res, 401, new Error(message));
     }
-
-    const authHeader = req.headers.authorization;
-    if (!authHeader.startsWith("Bearer ")) {
-      return send.sendErrorMessage(
-        res,
-        401,
-        new Error("Invalid authorization header format")
-      );
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    if (!token) {
-      return send.sendErrorMessage(res, 401, new Error("No token provided"));
-    }
-
-    // Use JWT_SECRET to be consistent with other middleware
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || process.env.SECRET_KEY
-    );
-
-    // Standardize user data format across all middleware
-    req.userData = {
-      id: decoded.id,
-      userId: decoded.id, // Provide both for compatibility
-      email: decoded.email,
-      roles: decoded.roles,
-      role: decoded.roles,
-      first_name: decoded.first_name,
-      last_name: decoded.last_name,
-    };
-
-    next();
-  } catch (error) {
-    if (error.name === "JsonWebTokenError") {
-      return send.sendErrorMessage(res, 401, new Error("Invalid token"));
-    } else if (error.name === "TokenExpiredError") {
-      return send.sendErrorMessage(res, 401, new Error("Token expired"));
-    }
-    return send.sendErrorMessage(res, 401, new Error("Authentication failed"));
-  }
+  };
 };

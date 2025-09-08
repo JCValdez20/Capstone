@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
 const StaffManagement = () => {
@@ -63,24 +63,31 @@ const StaffManagement = () => {
     newPassword: "",
     confirmPassword: "",
   });
+  const {
+    getAllStaff,
+    createStaffAccount,
+    updateStaffAccount,
+    deleteStaffAccount,
+    resetStaffPassword,
+  } = useAuth();
 
-  useEffect(() => {
-    fetchStaffMembers();
-  }, []);
-
-  const fetchStaffMembers = async () => {
+  const fetchStaffMembers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await adminService.getAllStaff();
+      const response = await getAllStaff();
       console.log("Staff API Response:", response); // Debug log
-      setStaffMembers(response.staff || response.data?.staff || []);
+      setStaffMembers(response.staff || response.data?.staff || response || []);
     } catch (error) {
       console.error("Error fetching staff:", error);
       toast.error("Failed to load staff members");
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllStaff]);
+
+  useEffect(() => {
+    fetchStaffMembers();
+  }, [fetchStaffMembers]);
 
   const handleCreateStaff = async (e) => {
     e.preventDefault();
@@ -101,7 +108,7 @@ const StaffManagement = () => {
     }
 
     try {
-      await adminService.createStaffAccount(formData);
+      await createStaffAccount(formData);
       toast.success("Staff account created successfully");
       setIsCreateDialogOpen(false);
       setFormData({ first_name: "", last_name: "", email: "", password: "" });
@@ -128,7 +135,7 @@ const StaffManagement = () => {
     }
 
     try {
-      await adminService.updateStaffAccount(selectedStaff._id, {
+      await updateStaffAccount(selectedStaff._id, {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
@@ -148,7 +155,7 @@ const StaffManagement = () => {
 
   const handleDeleteStaff = async (staffId) => {
     try {
-      await adminService.deleteStaffAccount(staffId);
+      await deleteStaffAccount(staffId);
       toast.success("Staff account deleted successfully");
       fetchStaffMembers();
     } catch (error) {
@@ -178,7 +185,7 @@ const StaffManagement = () => {
     }
 
     try {
-      await adminService.resetStaffPassword(selectedStaff._id, {
+      await resetStaffPassword(selectedStaff._id, {
         newPassword: resetPasswordData.newPassword,
       });
       toast.success("Staff password reset successfully");

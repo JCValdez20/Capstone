@@ -1,11 +1,11 @@
 import React from "react";
 import { Outlet, Navigate } from "react-router-dom";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 
 const StaffProtected = () => {
-  const isStaffAuthenticated = adminService.isStaffAuthenticated();
+  const { isStaffAuthenticated } = useAuth();
 
-  if (!isStaffAuthenticated) {
+  if (!isStaffAuthenticated()) {
     return <Navigate to="/staff/login" replace />;
   }
 

@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
-// import { useAuth } from "../../../hooks/useAuth";
-import { bookingService } from "../../../services/bookingService";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../../hooks/useAuth";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import BookingChat from "@/components/BookingChat";
+
 import {
   Calendar,
   Clock,
@@ -19,25 +18,18 @@ import {
 } from "lucide-react";
 
 const BookingHistory = () => {
-  // const { user } = useAuth();
+  const { getUserBookings, cancelBooking } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Fetch bookings on component mount
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await bookingService.getUserBookings();
+      const response = await getUserBookings();
       setBookings(response.data || response || []); // Handle both response formats
     } catch (err) {
       console.error("Error fetching bookings:", err);
@@ -48,11 +40,16 @@ const BookingHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getUserBookings]);
+
+  // Fetch bookings on component mount
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const handleCancelBooking = async (bookingId) => {
     try {
-      await bookingService.cancelBooking(bookingId);
+      await cancelBooking(bookingId);
       // Refresh bookings after cancellation
       fetchBookings();
       toast.success("Booking cancelled", {
@@ -66,16 +63,6 @@ const BookingHistory = () => {
           err.response?.data?.message || "Please try again or contact support.",
       });
     }
-  };
-
-  const handleOpenChat = (booking) => {
-    setSelectedBooking(booking);
-    setIsChatOpen(true);
-  };
-
-  const handleCloseChat = () => {
-    setIsChatOpen(false);
-    setSelectedBooking(null);
   };
 
   const getStatusIcon = (status) => {
@@ -345,13 +332,6 @@ const BookingHistory = () => {
                         <td className="px-6 py-5 whitespace-nowrap">
                           <div className="flex items-center justify-end space-x-2">
                             {/* Message Button */}
-                            <button
-                              onClick={() => handleOpenChat(booking)}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200 hover:border-blue-300 flex items-center space-x-1"
-                            >
-                              <MessageCircle className="w-3 h-3" />
-                              <span>Message</span>
-                            </button>
 
                             {/* Cancel Button */}
                             {(booking.status === "pending" ||
@@ -400,13 +380,6 @@ const BookingHistory = () => {
           </div>
         </>
       )}
-
-      {/* Booking Chat Component */}
-      <BookingChat
-        booking={selectedBooking}
-        isOpen={isChatOpen}
-        onClose={handleCloseChat}
-      />
     </div>
   );
 };

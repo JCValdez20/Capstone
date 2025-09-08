@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const UserController = require("../controllers/UserController");
-const Auth = require("../middleware/auth");
-const Roles = require("../middleware/roles");
+const UserGuard = require("../middleware/User-Guard");
 
 router.post("/login", UserController.userLogin);
 router.post("/register", UserController.userRegister);
@@ -12,15 +11,10 @@ router.post("/verify-email", UserController.verifyEmail);
 router.post("/resend-verification", UserController.resendVerificationEmail);
 
 // Protected user routes
-router.get("/profile", Roles.anyAuth(), UserController.getCurrentUser);
-router.put("/profile", Roles.anyAuth(), UserController.updateProfile);
-router.put(
-  "/profile/picture",
-  Roles.anyAuth(),
-  UserController.updateProfilePicture
-);
+router.get("/profile", UserGuard(), UserController.getCurrentUser);
+router.put("/profile", UserGuard(), UserController.updateProfile);
 
-router.get("/admin/users", Roles.admin(), UserController.getAllUsers);
-router.get("/admin/users/:id", UserController.getUserbyId);
+router.get("/admin/users", UserGuard("admin"), UserController.getAllUsers);
+router.get("/admin/users/:id", UserGuard("admin"), UserController.getUserbyId);
 
 module.exports = router;

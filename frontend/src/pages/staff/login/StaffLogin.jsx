@@ -13,7 +13,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, Users, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import adminService from "@/services/adminService";
+import { useAuth } from "@/hooks/useAuth";
 
 const StaffLogin = () => {
   const [formData, setFormData] = useState({
@@ -24,13 +24,14 @@ const StaffLogin = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login, isStaffAuthenticated } = useAuth();
 
   // Check if staff is already authenticated
   useEffect(() => {
-    if (adminService.isStaffAuthenticated()) {
+    if (isStaffAuthenticated()) {
       navigate("/staff/dashboard", { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, isStaffAuthenticated]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -52,37 +53,27 @@ const StaffLogin = () => {
     setError("");
 
     try {
-      const response = await adminService.login(
-        formData.email,
-        formData.password
-      );
+      const result = await login(formData, "staff");
 
-      // Check if the logged in user is staff
-      const userRole = response.user.role || response.user.roles;
-
-      if (userRole !== "staff") {
-        if (userRole === "admin") {
-          setError(
-            "Access denied. This is the staff login portal. Admin accounts should use the Admin login portal."
-          );
-        } else {
-          setError("Access denied. Staff privileges required.");
-        }
-        return;
+      if (result.success) {
+        toast.success("Staff login successful!", {
+          description: "Welcome to the staff dashboard!",
+        });
+        navigate("/staff/dashboard", { replace: true });
+      } else {
+        setError(result.error || "Login failed");
+        toast.error("Login failed", {
+          description:
+            result.error || "Please check your credentials and try again.",
+        });
       }
-
-      toast.success("Staff login successful", {
-        description: "Welcome to the staff dashboard!",
-      });
-
-      // Redirect to staff dashboard
-      navigate("/staff/dashboard", { replace: true });
     } catch (error) {
-      const errorMessage = error.message || "Login failed. Please try again.";
+      const errorMessage =
+        error.response?.data?.message || error.message || "Login failed";
       setError(errorMessage);
       toast.error("Login failed", {
         description:
-          error.message || "Please check your credentials and try again.",
+          errorMessage || "Please check your credentials and try again.",
       });
     } finally {
       setIsLoading(false);

@@ -1,29 +1,25 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { userService } from "../services/userService";
 
 const GoogleCallbackHandler = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login, updateUserData } = useAuth();
-  const hasProcessed = useRef(false); // Prevent multiple executions
+  const { checkAuth } = useAuth();
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
-    // Prevent multiple executions
     if (hasProcessed.current) {
       console.log("🔒 GOOGLE CALLBACK - Already processed, skipping...");
       return;
     }
 
     const handleGoogleCallback = async () => {
-      const token = searchParams.get("token");
-      const userParam = searchParams.get("user");
+      const success = searchParams.get("success");
       const error = searchParams.get("error");
 
       console.log("🎬 GOOGLE CALLBACK HANDLER - Starting...", {
-        token: !!token,
-        userParam: !!userParam,
+        success,
         error,
       });
 
@@ -32,65 +28,43 @@ const GoogleCallbackHandler = () => {
         return;
       }
 
-      if (token && userParam) {
+      if (success === "true") {
         try {
-          hasProcessed.current = true; // Mark as processed FIRST
+          hasProcessed.current = true;
           console.log("🔐 GOOGLE CALLBACK - Marked as processed");
 
-          const user = JSON.parse(decodeURIComponent(userParam));
+          // Check auth to get user data from cookies
+          const user = await checkAuth();
 
-          console.log("🚀 GOOGLE AUTH CALLBACK - User:", user);
+          if (user) {
+            // Remove query params from URL
+            window.history.replaceState(
+              {},
+              document.title,
+              "/auth/callback/google"
+            );
 
-          // First, do initial login to set auth state
-          const loginResult = await login(token, user, true);
-
-          if (loginResult.success && user.hasProfilePic) {
-            try {
-              console.log("🖼️ FETCHING PROFILE PICTURE...");
-              const response = await userService.getCurrentUser();
-              const userData = response.data;
-
-              if (userData.profilePic) {
-                console.log("🎯 UPDATING WITH PROFILE PIC");
-
-                // Update user with profile picture
-                const updatedUser = {
-                  ...user,
-                  profilePic: userData.profilePic,
-                };
-
-                updateUserData(updatedUser);
-              }
-            } catch (profileError) {
-              console.error("❌ Profile picture fetch failed:", profileError);
-              // Continue without profile picture
-            }
+            console.log("✅ GOOGLE CALLBACK - User authenticated:", user);
+            console.log("✅ GOOGLE CALLBACK - Navigating to dashboard");
+            navigate("/dashboard", { replace: true });
+          } else {
+            console.error("❌ Google auth callback - No user found");
+            navigate("/login?error=auth_failed");
           }
-
-          // Remove query params from URL
-          window.history.replaceState(
-            {},
-            document.title,
-            "/auth/callback/google"
-          );
-
-          console.log("✅ GOOGLE CALLBACK - Navigating to dashboard");
-          // Navigate to dashboard
-          navigate("/dashboard", { replace: true });
         } catch (err) {
           console.error("❌ Google auth callback error:", err);
-          navigate("/login?error=invalid_user_data");
+          navigate("/login?error=auth_failed");
         }
       } else {
-        console.log("❌ GOOGLE CALLBACK - Missing auth data");
+        console.log("❌ GOOGLE CALLBACK - Missing success parameter");
         navigate("/login?error=missing_auth_data");
       }
     };
 
     handleGoogleCallback();
-  }, []); // Empty dependency array - only run once on mount
+  }, [searchParams, navigate, checkAuth]);
 
-  return null; // Or <LoadingSpinner />
+  return null;
 };
 
 export default GoogleCallbackHandler;

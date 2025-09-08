@@ -1,144 +1,169 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useChatStore } from "@/store/useChatStore";
+import { Search, Send, Users, Image, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { MessageCircle, Send, Users, User, Clock, Search } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import messagingService from "@/services/messagingService";
+
+const formatMessageTime = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
 
 const AdminStaffMessages = () => {
-  const [staffList, setStaffList] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
+  const { user, isAdminOrStaff, role, onlineUsers } = useAuth();
+
+  const {
+    messages,
+    users,
+    selectedUser,
+    isUsersLoading,
+    isMessagesLoading,
+    isSendingMessage,
+    getUsers,
+    sendMessage,
+    setSelectedUser,
+  } = useChatStore();
+
+  // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const loadStaffList = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await messagingService.getStaffList();
-      setStaffList(response.data?.staffMembers || []);
-    } catch (error) {
-      console.error("Error loading staff list:", error);
-      toast.error("Failed to load staff list");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Fetch users on component mount
+  useEffect(() => {
+    if (isAdminOrStaff()) {
+      getUsers();
     }
-  }, []);
+  }, [getUsers, isAdminOrStaff]);
 
-  const startConversationWithStaff = async (staffMember) => {
-    try {
-      const response = await messagingService.createDirectConversation(
-        staffMember._id
-      );
-      const conversation = response.data?.conversation;
-
-      if (conversation) {
-        // Select this conversation and load messages
-        setSelectedConversation(conversation);
-        loadMessages(conversation._id);
-      }
-
-      toast.success(
-        `Started conversation with ${staffMember.first_name} ${staffMember.last_name}`
-      );
-    } catch (error) {
-      console.error("Error creating conversation:", error);
-      toast.error("Failed to start conversation");
-    }
+  // Handle user selection
+  const handleUserSelect = async (selectedStaff) => {
+    console.log("📋 Selecting user:", selectedStaff);
+    await setSelectedUser(selectedStaff);
   };
 
-  const loadMessages = useCallback(async (conversationId) => {
-    try {
-      const response = await messagingService.getMessages(conversationId);
-      setMessages(response.data?.messages || []);
+  // Handle image selection
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      // Mark as read
-      await messagingService.markAsRead(conversationId);
-
-      setTimeout(scrollToBottom, 100);
-    } catch (error) {
-      console.error("Error loading messages:", error);
-      toast.error("Failed to load messages");
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
     }
-  }, []);
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || sendingMessage) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Remove image preview
+  const removeImage = () => {
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Handle message sending
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+
+    if (!newMessage.trim() && !imagePreview) {
+      toast.error("Please enter a message or select an image");
+      return;
+    }
+
+    if (!selectedUser) {
+      toast.error("Please select a user to message");
+      return;
+    }
 
     try {
-      setSendingMessage(true);
-      const response = await messagingService.sendMessage(
-        selectedConversation._id,
-        newMessage.trim()
-      );
+      await sendMessage({
+        text: newMessage.trim(),
+        image: imagePreview,
+      });
 
-      const message = response.data?.message;
-      if (message) {
-        setMessages((prev) => [...prev, message]);
-        setNewMessage("");
-        setTimeout(scrollToBottom, 100);
-      }
+      // Clear form
+      setNewMessage("");
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
-    } finally {
-      setSendingMessage(false);
     }
   };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage(e);
     }
   };
 
-  const filteredStaff = staffList.filter((staff) =>
+  // Filter users based on search query
+  const filteredUsers = users.filter((staff) =>
     `${staff.first_name} ${staff.last_name}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
 
-  useEffect(() => {
-    loadStaffList();
-  }, [loadStaffList]);
-
-  useEffect(() => {
-    if (selectedConversation) {
-      loadMessages(selectedConversation._id);
-    }
-  }, [selectedConversation, loadMessages]);
+  // Role-based access control
+  if (!user || !isAdminOrStaff()) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card className="w-96">
+          <CardHeader>
+            <CardTitle className="text-center text-red-600">
+              Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-600">
+              You don't have permission to access this messaging system. Only
+              admin and staff members can use this feature.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      {/* Left Sidebar - Staff List & Conversations */}
-      <div className="w-1/3 border-r bg-white flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Staff Messages
-          </CardTitle>
-        </CardHeader>
+    <div className="flex h-screen bg-gray-50">
+      {/* Users Sidebar */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-5 w-5 text-blue-600" />
+            <h2 className="font-semibold text-gray-900">Staff Messages</h2>
+          </div>
 
-        {/* Search */}
-        <div className="px-4 pb-3">
+          {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search staff..."
+              type="text"
+              placeholder="Search staff members..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -146,144 +171,262 @@ const AdminStaffMessages = () => {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
-          {/* Staff List */}
-          <div className="px-4 pb-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">
-              Available Staff
-            </h3>
-            <div className="space-y-2">
-              {loading ? (
-                <div className="text-sm text-gray-500">Loading staff...</div>
-              ) : filteredStaff.length === 0 ? (
-                <div className="text-sm text-gray-500">No staff found</div>
-              ) : (
-                filteredStaff.map((staff) => (
-                  <div
-                    key={staff._id}
-                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => startConversationWithStaff(staff)}
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>
-                        {staff.first_name?.[0]}
-                        {staff.last_name?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">
-                        {staff.first_name} {staff.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500">{staff.email}</p>
-                    </div>
-                    <MessageCircle className="h-4 w-4 text-gray-400" />
+        {/* Users List */}
+        <div className="flex-1 overflow-y-auto">
+          {isUsersLoading ? (
+            <div className="p-4 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-16" />
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
-          </div>
-        </ScrollArea>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              No staff members found
+            </div>
+          ) : (
+            <div className="p-2 space-y-1">
+              {filteredUsers.map((staff) => {
+                const isOnline = onlineUsers.includes(staff._id);
+                const isSelected = selectedUser?._id === staff._id;
+
+                return (
+                  <button
+                    key={staff._id}
+                    onClick={() => handleUserSelect(staff)}
+                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      isSelected
+                        ? "bg-blue-50 border border-blue-200"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={staff.profilePic} />
+                          <AvatarFallback>
+                            {`${staff.first_name?.[0] || ""}${
+                              staff.last_name?.[0] || ""
+                            }`.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {isOnline && (
+                          <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 border-2 border-white rounded-full"></div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">
+                          {staff.first_name} {staff.last_name}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              staff.roles === "admin" ? "default" : "secondary"
+                            }
+                            className="text-xs"
+                          >
+                            {staff.roles}
+                          </Badge>
+                          <span
+                            className={`text-xs ${
+                              isOnline ? "text-green-600" : "text-gray-400"
+                            }`}
+                          >
+                            {isOnline ? "Online" : "Offline"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Right Side - Messages */}
+      {/* Chat Area */}
       <div className="flex-1 flex flex-col">
-        {selectedConversation ? (
+        {selectedUser ? (
           <>
-            {/* Conversation Header */}
-            <div className="border-b bg-white p-4">
-              <div className="flex items-center gap-3">
+            {/* Chat Header */}
+            <div className="bg-white border-b border-gray-200 p-4">
+              <div className="flex items-center space-x-3">
                 <Avatar className="h-10 w-10">
+                  <AvatarImage src={selectedUser.profilePic} />
                   <AvatarFallback>
-                    {(() => {
-                      const staffUser = selectedConversation.participants?.find(
-                        (p) => p.role === "staff"
-                      )?.user;
-                      return `${staffUser?.first_name?.[0] || ""}${
-                        staffUser?.last_name?.[0] || ""
-                      }`;
-                    })()}
+                    {`${selectedUser.first_name?.[0] || ""}${
+                      selectedUser.last_name?.[0] || ""
+                    }`.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="font-semibold">
-                    {(() => {
-                      const staffUser = selectedConversation.participants?.find(
-                        (p) => p.role === "staff"
-                      )?.user;
-                      return `${staffUser?.first_name || ""} ${
-                        staffUser?.last_name || ""
-                      }`;
-                    })()}
+                  <h3 className="font-semibold text-gray-900">
+                    {selectedUser.first_name} {selectedUser.last_name}
                   </h3>
-                  <p className="text-sm text-gray-500">Staff Member</p>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={
+                        selectedUser.roles === "admin" ? "default" : "secondary"
+                      }
+                    >
+                      {selectedUser.roles}
+                    </Badge>
+                    <span className="text-sm text-gray-500">
+                      {selectedUser.email}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {messages.map((message) => {
-                  const adminUser = JSON.parse(
-                    localStorage.getItem("adminUser") || "{}"
-                  );
-                  const isCurrentUser = message.sender?._id === adminUser.id;
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {isMessagesLoading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-start space-x-3">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-16 w-64" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  No messages yet. Start the conversation!
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const isOwn = message.senderId === user.id;
 
                   return (
                     <div
                       key={message._id}
                       className={`flex ${
-                        isCurrentUser ? "justify-end" : "justify-start"
+                        isOwn ? "justify-end" : "justify-start"
                       }`}
                     >
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          isCurrentUser
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-200 text-gray-800"
+                          isOwn
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-900"
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs mt-1 opacity-70">
-                          {format(new Date(message.createdAt), "HH:mm")}
+                        {message.image && (
+                          <img
+                            src={message.image}
+                            alt="Attachment"
+                            className="max-w-full h-auto rounded-md mb-2"
+                          />
+                        )}
+                        {message.text && (
+                          <p className="text-sm whitespace-pre-wrap">
+                            {message.text}
+                          </p>
+                        )}
+                        <p
+                          className={`text-xs mt-1 ${
+                            isOwn ? "text-blue-100" : "text-gray-500"
+                          }`}
+                        >
+                          {formatMessageTime(message.createdAt)}
                         </p>
                       </div>
                     </div>
                   );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
             {/* Message Input */}
-            <div className="border-t bg-white p-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Type your message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
-                  size="sm"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="bg-white border-t border-gray-200 p-4">
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-300"
+                    />
+                    <button
+                      onClick={removeImage}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs hover:bg-red-600"
+                      type="button"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <form
+                onSubmit={handleSendMessage}
+                className="flex items-end gap-2"
+              >
+                <div className="flex-1">
+                  <Textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type your message..."
+                    className="resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleImageChange}
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={imagePreview ? "text-blue-600" : "text-gray-400"}
+                  >
+                    <Image className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    disabled={
+                      (!newMessage.trim() && !imagePreview) || isSendingMessage
+                    }
+                    size="icon"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </form>
             </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gray-50">
             <div className="text-center">
-              <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                Select a staff member to message
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Select a staff member
               </h3>
               <p className="text-gray-500">
-                Choose a staff member from the list to start a conversation
+                Choose someone from the sidebar to start messaging
               </p>
             </div>
           </div>

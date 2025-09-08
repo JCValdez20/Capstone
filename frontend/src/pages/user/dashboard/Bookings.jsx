@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { useAuth } from "../../../hooks/useAuth";
-import { bookingService } from "../../../services/bookingService";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -34,7 +33,7 @@ import {
 } from "lucide-react";
 
 const Bookings = () => {
-  const { user } = useAuth();
+  const { user, createBooking, getAvailableSlots } = useAuth();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
@@ -144,7 +143,7 @@ const Bookings = () => {
     setLoadingSlots(true);
     try {
       const dateString = formatDateForAPI(selectedDate);
-      const slots = await bookingService.getAvailableSlots(dateString);
+      const slots = await getAvailableSlots(dateString);
 
       setAvailableSlots(slots);
       setSelectedTimeSlot(null); // Reset selected time slot
@@ -208,7 +207,7 @@ const Bookings = () => {
       };
 
       console.log("Creating booking with data:", bookingData);
-      await bookingService.createBooking(bookingData);
+      await createBooking(bookingData);
       setBookingSuccess(true);
 
       toast.success("Booking confirmed!", {
@@ -252,9 +251,6 @@ const Bookings = () => {
         error.message.includes("session has expired") ||
         error.message.includes("Authentication failed")
       ) {
-        // Clear potentially invalid tokens
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
         toast.error("Session Expired", {
           description: "Please log in again to continue.",
           action: {
