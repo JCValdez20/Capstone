@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import axios from "../services/axios";
-import { useAuthStore } from "./useAuthStore";
+import socketService from "../services/socketService";
 
 export const useChatStore = create((set, get) => ({
   messages: [],
@@ -19,9 +19,10 @@ export const useChatStore = create((set, get) => ({
 
       // Filter to only admin and staff roles
       const adminStaffUsers =
-        response.data?.filter(
-          (user) => user.roles === "admin" || user.roles === "staff"
-        ) || [];
+        response.data?.filter((user) => {
+          const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
+          return roles.includes("admin") || roles.includes("staff");
+        }) || [];
 
       console.log("📋 Fetched users for messaging:", adminStaffUsers.length);
       set({ users: adminStaffUsers });
@@ -89,7 +90,7 @@ export const useChatStore = create((set, get) => ({
   // Subscribe to real-time messages
   subscribeToMessages: () => {
     const { selectedUser } = get();
-    const { socket } = useAuthStore.getState();
+    const socket = socketService.getSocket();
 
     if (!selectedUser || !socket?.connected) {
       console.log("⚠️ Cannot subscribe - missing selectedUser or socket");
@@ -121,7 +122,7 @@ export const useChatStore = create((set, get) => ({
 
   // Unsubscribe from real-time messages
   unsubscribeFromMessages: () => {
-    const { socket } = useAuthStore.getState();
+    const socket = socketService.getSocket();
 
     if (socket?.connected) {
       console.log("🔕 Unsubscribing from messages");
@@ -167,10 +168,8 @@ export const useChatStore = create((set, get) => ({
 
   // Initialize chat (called when auth is ready)
   initializeChat: () => {
-    const { isAdminOrStaff } = useAuthStore.getState();
-
-    // Only initialize for admin/staff users
-    if (isAdminOrStaff()) {
+    // Socket should already be connected if user is admin/staff
+    if (socketService.isConnected()) {
       console.log("🚀 Initializing chat for admin/staff user");
       get().getUsers();
     }

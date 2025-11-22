@@ -24,10 +24,10 @@ const userSchema = new mongoose.Schema({
     minLength: 8,
   },
   roles: {
-    type: String,
+    type: [String],
     required: true,
     enum: ["customer", "admin", "staff"],
-    default: "customer",
+    default: ["customer"],
   },
   isGoogleUser: {
     type: Boolean,

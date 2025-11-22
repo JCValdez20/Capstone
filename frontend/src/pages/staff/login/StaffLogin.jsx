@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, Users, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import authService from "@/services/simpleAuthService";
 
 const StaffLogin = () => {
   const [formData, setFormData] = useState({
@@ -24,14 +25,26 @@ const StaffLogin = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login, isStaffAuthenticated } = useAuth();
+  const { login, isStaffAuthenticated, isLoading: authLoading } = useAuth();
 
-  // Check if staff is already authenticated
+  // Redirect if staff is already logged in
   useEffect(() => {
-    if (isStaffAuthenticated()) {
+    if (!authLoading && isStaffAuthenticated()) {
       navigate("/staff/dashboard", { replace: true });
     }
-  }, [navigate, isStaffAuthenticated]);
+  }, [authLoading, isStaffAuthenticated, navigate]);
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -53,9 +66,10 @@ const StaffLogin = () => {
     setError("");
 
     try {
-      const result = await login(formData, "staff");
+      const result = await authService.login(formData);
 
       if (result.success) {
+        login(result.accessToken, result.refreshToken, result.user);
         toast.success("Staff login successful!", {
           description: "Welcome to the staff dashboard!",
         });

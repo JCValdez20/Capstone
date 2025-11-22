@@ -3,9 +3,10 @@ const argon2 = require("argon2");
 const jwt = require("jsonwebtoken");
 const send = require("../utils/Response");
 const EmailService = require("../utils/EmailService");
-const JwtService = require("../utils/JwtService");
 
-exports.userLogin = async (req, res) => {
+// Unified login endpoint - handles all user types (customer, admin, staff)
+// Role validation is now done at the frontend/middleware level
+exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -27,16 +28,46 @@ exports.userLogin = async (req, res) => {
       });
     }
 
-    // Generate JWT tokens
-    const { accessToken, refreshToken } = JwtService.generateTokens(user);
+    // Generate JWT tokens (roles included in payload)
+    // Generate tokens directly
+    const accessTokenSecret =
+      process.env.JWT_ACCESS_SECRET ||
+      process.env.SECRET_KEY ||
+      "ACCESS_SECRET";
+    const refreshTokenSecret =
+      process.env.JWT_REFRESH_SECRET ||
+      (process.env.SECRET_KEY || "ACCESS_SECRET") + "_REFRESH";
 
-    // Set HttpOnly cookies
-    JwtService.setTokenCookies(res, accessToken, refreshToken);
+    const roles = Array.isArray(user.roles)
+      ? user.roles
+      : user.roles
+      ? [user.roles]
+      : ["customer"];
 
-    // Return user data (excluding password and tokens)
+    const payload = {
+      id: user._id || user.id,
+      email: user.email,
+      roles,
+      first_name: user.first_name,
+      last_name: user.last_name,
+    };
+
+    const accessToken = jwt.sign(payload, accessTokenSecret, {
+      expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m",
+    });
+
+    const refreshToken = jwt.sign(
+      { id: payload.id, roles },
+      refreshTokenSecret,
+      { expiresIn: process.env.JWT_REFRESH_EXPIRY || "7d" }
+    );
+
+    // Return user data and tokens in JSON response
     return res.status(200).json({
       success: true,
       message: "Login successful",
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         first_name: user.first_name,
@@ -53,50 +84,11 @@ exports.userLogin = async (req, res) => {
   }
 };
 
-exports.adminLogin = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+// Backwards compatibility alias
+exports.userLogin = exports.login;
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Check if user is an admin or staff
-    if (user.roles !== "admin" && user.roles !== "staff") {
-      return res.status(403).json({
-        message: "Access denied. Admin or Staff privileges required.",
-      });
-    }
-
-    if (!(await argon2.verify(user.password, password))) {
-      return res.status(400).json({ message: "Invalid Password" });
-    }
-
-    // Generate JWT tokens
-    const { accessToken, refreshToken } = JwtService.generateTokens(user);
-
-    // Set HttpOnly cookies
-    JwtService.setTokenCookies(res, accessToken, refreshToken);
-
-    // Return user data (excluding password and tokens)
-    return res.status(200).json({
-      success: true,
-      message: "Admin login successful",
-      user: {
-        id: user._id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        name: `${user.first_name} ${user.last_name}`,
-        email: user.email,
-        roles: user.roles,
-        isGoogleUser: user.isGoogleUser || false,
-      },
-    });
-  } catch (error) {
-    return send.sendErrorMessage(res, 500, error);
-  }
-};
+// Removed - replaced with unified login endpoint
+// Role validation now handled at middleware level
 
 exports.userRegister = async (req, res) => {
   const { first_name, last_name, email, password, roles } = req.body;
@@ -118,7 +110,7 @@ exports.userRegister = async (req, res) => {
       last_name,
       email,
       password: hash,
-      roles,
+      roles: roles ? (Array.isArray(roles) ? roles : [roles]) : ["customer"],
       isVerified: false,
       verificationToken: otp,
       verificationTokenExpires: otpExpires,

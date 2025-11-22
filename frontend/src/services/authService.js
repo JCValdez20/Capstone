@@ -2,11 +2,11 @@ import axios from "./axios";
 
 class AuthService {
   /**
-   * Customer login
+   * Customer login - uses unified login endpoint
    */
   async customerLogin(credentials) {
     try {
-      const response = await axios.post("/user/login", credentials);
+      const response = await axios.post("/auth/login", credentials);
       return {
         success: true,
         user: response.data.user,
@@ -22,11 +22,11 @@ class AuthService {
   }
 
   /**
-   * Admin/Staff login
+   * Admin/Staff login - uses unified login endpoint
    */
   async adminLogin(credentials) {
     try {
-      const response = await axios.post("/admin/login", credentials);
+      const response = await axios.post("/auth/login", credentials);
       return {
         success: true,
         user: response.data.user,
@@ -42,7 +42,7 @@ class AuthService {
   }
 
   /**
-   * Get current user profile
+   * Get current user profile - automatically detects role from cookies on backend
    */
   async getCurrentUser() {
     try {
@@ -64,7 +64,7 @@ class AuthService {
   }
 
   /**
-   * Refresh authentication token
+   * Refresh authentication token - automatically detects role from cookies on backend
    */
   async refreshToken() {
     try {
@@ -72,6 +72,7 @@ class AuthService {
       return {
         success: true,
         loggedIn: response.data.loggedIn,
+        user: response.data.user,
         message: response.data.message,
       };
     } catch (error) {

@@ -11,17 +11,20 @@ router.get("/user-verification", TokenVerify(), (req, res) => {
   });
 });
 
-// Get current user profile (protected)
-router.get("/me", AuthController.me);
+// Unified login endpoint (no role checking - accepts all users)
+const UserController = require("../controllers/UserController");
+router.post("/login", UserController.login);
 
-// Refresh access token
-router.post("/refresh", AuthController.refreshToken);
+// Get current user profile (protected - requires valid JWT)
+router.get("/me", TokenVerify(), AuthController.me);
 
-// Logout endpoint
+// Refresh access token (no auth required - uses refresh token in body)
+router.post("/refresh", AuthController.refreshTokens);
+
+// Logout endpoint (client-side handled)
 router.post("/logout", AuthController.logout);
 
 // Google OAuth routes
-router.get("/login/success", AuthController.loginSuccess);
 router.get("/login/failed", AuthController.loginFailed);
 router.get("/google/callback", AuthController.googleCallback);
 router.get("/google", AuthController.googleAuth);

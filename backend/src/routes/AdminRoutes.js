@@ -4,8 +4,7 @@ const UserController = require("../controllers/UserController");
 const BookingController = require("../controllers/BookingController");
 const userGuard = require("../middleware/User-Guard");
 
-// Admin login route
-router.post("/login", UserController.adminLogin);
+// Admin login moved to /auth/login with role validation at middleware level
 
 // Protected admin routes (require admin authentication)
 router.get("/dashboard", userGuard(["admin", "staff"]), (req, res) => {

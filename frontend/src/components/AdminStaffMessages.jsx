@@ -23,7 +23,7 @@ const AdminStaffMessages = () => {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const { user, isAdminOrStaff, role, onlineUsers } = useAuth();
+  const { user, isAdminOrStaff, onlineUsers } = useAuth();
 
   const {
     messages,
@@ -226,12 +226,19 @@ const AdminStaffMessages = () => {
                         </p>
                         <div className="flex items-center gap-2">
                           <Badge
-                            variant={
-                              staff.roles === "admin" ? "default" : "secondary"
-                            }
+                            variant={(() => {
+                              const roles = Array.isArray(staff.roles)
+                                ? staff.roles
+                                : [staff.roles];
+                              return roles.includes("admin")
+                                ? "default"
+                                : "secondary";
+                            })()}
                             className="text-xs"
                           >
-                            {staff.roles}
+                            {Array.isArray(staff.roles)
+                              ? staff.roles.join(", ")
+                              : staff.roles}
                           </Badge>
                           <span
                             className={`text-xs ${
@@ -272,11 +279,18 @@ const AdminStaffMessages = () => {
                   </h3>
                   <div className="flex items-center gap-2">
                     <Badge
-                      variant={
-                        selectedUser.roles === "admin" ? "default" : "secondary"
-                      }
+                      variant={(() => {
+                        const roles = Array.isArray(selectedUser.roles)
+                          ? selectedUser.roles
+                          : [selectedUser.roles];
+                        return roles.includes("admin")
+                          ? "default"
+                          : "secondary";
+                      })()}
                     >
-                      {selectedUser.roles}
+                      {Array.isArray(selectedUser.roles)
+                        ? selectedUser.roles.join(", ")
+                        : selectedUser.roles}
                     </Badge>
                     <span className="text-sm text-gray-500">
                       {selectedUser.email}

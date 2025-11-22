@@ -3,7 +3,7 @@ const router = express.Router();
 const UserController = require("../controllers/UserController");
 const UserGuard = require("../middleware/User-Guard");
 
-router.post("/login", UserController.userLogin);
+// Login moved to /auth/login for unified authentication
 router.post("/register", UserController.userRegister);
 
 // Email verification routes

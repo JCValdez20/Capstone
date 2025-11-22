@@ -1,19 +1,14 @@
-const jwt = require("jsonwebtoken");
+// middleware/authGuard.js
 const send = require("../utils/Response");
-const JwtService = require("../utils/JwtService");
+const jwt = require("jsonwebtoken");
 
-/**
- * Efficient Role-Based Authentication Middleware using JWT from HttpOnly cookies
- * @param {string|string[]|null} allowedRoles - Roles allowed access (null = any authenticated user)
- * @returns {Function} Express middleware
- */
 module.exports = (allowedRoles = null) => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     try {
-      // Extract token from HttpOnly cookie
-      const { accessToken } = JwtService.extractTokensFromCookies(req);
+      // Extract token from Authorization header
+      const authHeader = req.headers.authorization;
 
-      if (!accessToken) {
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return send.sendErrorMessage(
           res,
           401,
@@ -21,42 +16,50 @@ module.exports = (allowedRoles = null) => {
         );
       }
 
-      // Verify and extract user data
-      const decoded = JwtService.verifyAccessToken(accessToken);
-      const userRole = decoded.roles || decoded.role || "customer";
+      const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+      const accessTokenSecret =
+        process.env.JWT_ACCESS_SECRET ||
+        process.env.SECRET_KEY ||
+        "ACCESS_SECRET";
+      const decoded = jwt.verify(accessToken, accessTokenSecret);
 
-      // Set standardized user data
+      // Normalize roles to array
+      const userRoles = Array.isArray(decoded.roles)
+        ? decoded.roles
+        : decoded.roles
+        ? [decoded.roles]
+        : ["customer"];
+
       req.userData = {
         id: decoded.id,
-        userId: decoded.id,
         email: decoded.email,
-        roles: userRole,
+        roles: userRoles,
         first_name: decoded.first_name,
         last_name: decoded.last_name,
       };
 
-      // Role-based authorization (if roles specified)
+      // If allowedRoles supplied, check intersection
       if (allowedRoles) {
-        const roles = Array.isArray(allowedRoles)
+        const allowed = Array.isArray(allowedRoles)
           ? allowedRoles
           : [allowedRoles];
-
-        const hasAccess =
-          roles.includes(userRole) ||
-          (userRole === "admin" && !roles.includes("customer")); // Admin has access except when specifically requiring customer role
-
+        const hasAccess = userRoles.some((r) => allowed.includes(r));
         if (!hasAccess) {
           return send.sendErrorMessage(res, 403, new Error("Access denied"));
         }
       }
 
-      next();
-    } catch (error) {
-      const message =
-        error.name === "TokenExpiredError"
-          ? "Access token expired"
-          : "Invalid access token";
-      return send.sendErrorMessage(res, 401, new Error(message));
+      return next();
+    } catch (err) {
+      // Distinguish expired token so frontend can attempt refresh
+      if (err && err.name === "TokenExpiredError") {
+        return send.sendErrorMessage(
+          res,
+          401,
+          new Error("Access token expired")
+        );
+      }
+      return send.sendErrorMessage(res, 401, new Error("Invalid access token"));
     }
   };
 };

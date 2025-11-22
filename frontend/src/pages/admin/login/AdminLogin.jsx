@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, Shield, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import authService from "@/services/simpleAuthService";
 
 const AdminLogin = () => {
   const [formData, setFormData] = useState({
@@ -24,14 +25,26 @@ const AdminLogin = () => {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login, isAdminAuthenticated } = useAuth();
+  const { login, isAdminAuthenticated, isLoading: authLoading } = useAuth();
 
-  // Check if admin is already authenticated
+  // Redirect if admin is already logged in
   useEffect(() => {
-    if (isAdminAuthenticated()) {
+    if (!authLoading && isAdminAuthenticated()) {
       navigate("/admin/dashboard", { replace: true });
     }
-  }, [navigate, isAdminAuthenticated]);
+  }, [authLoading, isAdminAuthenticated, navigate]);
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -53,9 +66,10 @@ const AdminLogin = () => {
     setError("");
 
     try {
-      const result = await login(formData, "admin");
+      const result = await authService.login(formData);
 
       if (result.success) {
+        login(result.accessToken, result.refreshToken, result.user);
         toast.success("Admin login successful!", {
           description: "Welcome to the admin dashboard!",
         });
@@ -83,7 +97,7 @@ const AdminLogin = () => {
   const isFormValid = formData.email && formData.password;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         {/* Back to Home */}
         <div className="flex justify-center">

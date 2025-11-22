@@ -171,22 +171,9 @@ const Bookings = () => {
   const handleBooking = async () => {
     if (!selectedDate || !selectedTimeSlot || !selectedService) return;
 
-    // Check if user is authenticated before attempting booking
-    const userToken = localStorage.getItem("token");
-    if (!userToken) {
-      toast.error("Authentication Required", {
-        description: "Please log in again to continue.",
-        action: {
-          label: "Login",
-          onClick: () => navigate("/login"),
-        },
-      });
-      return;
-    }
-
-    // Verify user object is available
+    // Verify user object is available (JWT is in HttpOnly cookie)
     if (!user) {
-      toast.error("User Session Error", {
+      toast.error("Authentication Required", {
         description: "Please log in again to continue.",
         action: {
           label: "Login",
@@ -258,10 +245,17 @@ const Bookings = () => {
             onClick: () => navigate("/login"),
           },
         });
-      } else if (error.message.includes("Admin users cannot")) {
+      } else if (
+        error.message.includes("Admin users cannot") ||
+        error.message.includes("Staff users cannot") ||
+        error.message.includes("don't have permission")
+      ) {
         toast.error("Access Denied", {
-          description:
-            "Admin users cannot create bookings. Please use a customer account.",
+          description: error.message,
+          action: {
+            label: "Switch Account",
+            onClick: () => navigate("/login"),
+          },
         });
       } else {
         toast.error("Booking failed", {
@@ -310,7 +304,81 @@ const Bookings = () => {
     setError(""); // Clear any existing errors
   };
 
+  // Helper function to check if a time slot has passed for today
+  const isTimeSlotPassed = (timeSlot) => {
+    if (!selectedDate) return false;
+
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    if (!isToday) return false;
+
+    // Parse the time slot
+    const timeSlotMatch = timeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeSlotMatch) return false;
+
+    let hours = parseInt(timeSlotMatch[1]);
+    const minutes = parseInt(timeSlotMatch[2]);
+    const period = timeSlotMatch[3].toUpperCase();
+
+    // Convert to 24-hour format
+    if (period === "PM" && hours !== 12) {
+      hours += 12;
+    } else if (period === "AM" && hours === 12) {
+      hours = 0;
+    }
+
+    // Create a date object for the time slot
+    const slotDateTime = new Date(selectedDate);
+    slotDateTime.setHours(hours, minutes, 0, 0);
+
+    // Check if the slot time has passed
+    return slotDateTime <= now;
+  };
+
   const calendarDays = generateCalendarDays();
+
+  // Show access denied screen if user is admin or staff
+  const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+  if (user && (userRoles.includes("admin") || userRoles.includes("staff"))) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="text-red-600 flex items-center gap-2">
+              <X className="w-5 h-5" />
+              Access Denied
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert variant="destructive" className="border-red-200 bg-red-50">
+              <AlertDescription className="text-gray-700">
+                {userRoles.includes("admin") ? "Admin" : "Staff"} users cannot
+                create bookings. Only customer accounts can make bookings.
+              </AlertDescription>
+            </Alert>
+            <p className="text-sm text-gray-600">
+              If you need to test the booking system, please create or log in
+              with a customer account.
+            </p>
+            <Button
+              onClick={() =>
+                navigate(
+                  userRoles.includes("admin")
+                    ? "/admin/dashboard"
+                    : "/staff/dashboard"
+                )
+              }
+              className="w-full bg-red-600 hover:bg-red-700"
+            >
+              Return to {userRoles.includes("admin") ? "Admin" : "Staff"}{" "}
+              Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-white">
@@ -512,19 +580,27 @@ const Bookings = () => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                        {availableSlots.map((slot) => (
-                          <button
-                            key={slot.time}
-                            onClick={() => setSelectedTimeSlot(slot)}
-                            className={`p-3 rounded-md border-2 transition-all duration-200 text-sm font-medium ${
-                              selectedTimeSlot?.time === slot.time
-                                ? "border-green-500 bg-green-50 text-green-700"
-                                : "border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-700"
-                            }`}
-                          >
-                            {slot.time}
-                          </button>
-                        ))}
+                        {availableSlots.map((slot) => {
+                          const isPast = isTimeSlotPassed(slot.time);
+                          return (
+                            <button
+                              key={slot.time}
+                              onClick={() =>
+                                !isPast && setSelectedTimeSlot(slot)
+                              }
+                              disabled={isPast}
+                              className={`p-3 rounded-md border-2 transition-all duration-200 text-sm font-medium ${
+                                isPast
+                                  ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  : selectedTimeSlot?.time === slot.time
+                                  ? "border-green-500 bg-green-50 text-green-700"
+                                  : "border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-700"
+                              }`}
+                            >
+                              {slot.time}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>

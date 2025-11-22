@@ -62,12 +62,27 @@ class BookingService {
   }
 
   // Admin/Staff: Update booking status
-  async updateBookingStatus(bookingId, status, notes = "") {
+  async updateBookingStatus(
+    bookingId,
+    status,
+    notes = "",
+    rejectionReason = ""
+  ) {
     try {
-      const response = await axios.put(`/admin/bookings/${bookingId}/status`, {
+      const payload = {
         status,
         notes,
-      });
+      };
+
+      // Only include rejectionReason if provided (for rejected status)
+      if (rejectionReason) {
+        payload.rejectionReason = rejectionReason;
+      }
+
+      const response = await axios.put(
+        `/admin/bookings/${bookingId}/status`,
+        payload
+      );
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -127,9 +142,19 @@ class BookingService {
           "Please verify your email address before making bookings. Check your email for the verification code."
         );
       }
-      if (message.includes("Admin users cannot")) {
+      if (message.includes("Admin users cannot") || message.includes("admin")) {
         return new Error(
-          "Admin users cannot create bookings. Please use a customer account."
+          "Admin users cannot create bookings. Please log in with a customer account."
+        );
+      }
+      if (message.includes("Staff users cannot") || message.includes("staff")) {
+        return new Error(
+          "Staff users cannot create bookings. Please log in with a customer account."
+        );
+      }
+      if (message.includes("Access denied")) {
+        return new Error(
+          "You don't have permission to create bookings. Please log in with a customer account."
         );
       }
       return new Error(message);

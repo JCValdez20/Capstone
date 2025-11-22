@@ -5,7 +5,8 @@ import { useAuth } from "../hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const AuthRedirect = ({ children, redirectPath = "/dashboard" }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin, isStaff, isCustomer } =
+    useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -22,7 +23,18 @@ const AuthRedirect = ({ children, redirectPath = "/dashboard" }) => {
   }
 
   if (isAuthenticated()) {
-    return <Navigate to={redirectPath} replace state={{ from: location }} />;
+    // Smart redirect based on user role
+    let destination = redirectPath;
+
+    if (isAdmin()) {
+      destination = "/admin/dashboard";
+    } else if (isStaff()) {
+      destination = "/staff/dashboard";
+    } else if (isCustomer()) {
+      destination = "/dashboard";
+    }
+
+    return <Navigate to={destination} replace state={{ from: location }} />;
   }
 
   return children;

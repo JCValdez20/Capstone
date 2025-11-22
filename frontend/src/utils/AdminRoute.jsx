@@ -1,37 +1,37 @@
+// src/utils/AdminRoute.jsx
 import React from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 const AdminProtected = ({ adminOnly = false }) => {
-  const { isAdminAuthenticated, isStaffAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, isAdmin, isStaff } = useAuth();
 
-  // If adminOnly is true, only allow pure admin access
-  if (adminOnly) {
-    if (!isAdminAuthenticated()) {
-      return <Navigate to="/admin/login" replace />;
-    }
-    return <Outlet />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+      </div>
+    );
   }
 
-  // Otherwise, allow both admin and staff (but they must be authenticated in their respective roles)
-  if (!isAdminAuthenticated() && !isStaffAuthenticated()) {
-    // Neither admin nor staff is logged in
+  if (!isAuthenticated()) {
     return <Navigate to="/admin/login" replace />;
   }
 
-  // If staff is accessing admin routes, use staff authentication
-  if (isStaffAuthenticated() && !isAdminAuthenticated()) {
-    // Staff can access admin routes (like dashboard, user management)
+  // Admin-only pages
+  if (adminOnly && !isAdmin()) {
+    if (isStaff()) return <Navigate to="/staff/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+  }
+
+  // Check if user has admin or staff role
+  if (isAdmin() || isStaff()) {
     return <Outlet />;
   }
 
-  // If admin is accessing, use admin authentication
-  if (isAdminAuthenticated()) {
-    return <Outlet />;
-  }
-
-  // Fallback to login
-  return <Navigate to="/admin/login" replace />;
+  // Customers cannot access admin panel - redirect to customer login
+  return <Navigate to="/login" replace />;
 };
 
 export default AdminProtected;

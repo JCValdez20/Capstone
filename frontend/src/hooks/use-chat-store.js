@@ -28,9 +28,10 @@ export const useChatStore = create((set, get) => ({
 
       // Filter to only admin and staff roles
       const adminStaffUsers =
-        res.data?.filter(
-          (user) => user.roles === "admin" || user.roles === "staff"
-        ) || [];
+        res.data?.filter((user) => {
+          const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
+          return roles.includes("admin") || roles.includes("staff");
+        }) || [];
 
       set({ users: adminStaffUsers });
     } catch (error) {

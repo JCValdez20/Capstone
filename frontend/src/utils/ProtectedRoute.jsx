@@ -1,33 +1,18 @@
+// src/utils/ProtectedRoute.jsx
 import React from "react";
-import { Outlet, Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading, isAuthenticated, isAdmin, isStaff, isCustomer } =
+    useAuth();
   const location = useLocation();
 
   if (isLoading) {
     return (
-      <div className="w-full p-8 space-y-6 max-w-2xl mx-auto">
-        {/* Header Loading */}
-        <div className="flex items-center space-x-4">
-          <Skeleton className="h-12 w-12 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-[200px]" />
-            <Skeleton className="h-4 w-[150px]" />
-          </div>
-        </div>
-
-        {/* Content Loading */}
-        <div className="space-y-4">
-          <Skeleton className="h-[300px] w-full rounded-lg" />
-          <div className="grid grid-cols-3 gap-4">
-            <Skeleton className="h-[100px] w-full" />
-            <Skeleton className="h-[100px] w-full" />
-            <Skeleton className="h-[100px] w-full" />
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -36,6 +21,14 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
+  // Only allow customers to access customer routes
+  if (!isCustomer()) {
+    // Admin/Staff trying to access customer pages - redirect to their dashboard
+    if (isAdmin()) return <Navigate to="/admin/dashboard" replace />;
+    if (isStaff()) return <Navigate to="/staff/dashboard" replace />;
+  }
+
+  // Customer access
   return <Outlet />;
 };
 

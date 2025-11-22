@@ -1,7 +1,6 @@
 const { Server } = require("socket.io");
 const { createServer } = require("http");
 const jwt = require("jsonwebtoken");
-const JwtService = require("./JwtService");
 const cookie = require("cookie");
 
 // Socket.io setup function
@@ -22,19 +21,29 @@ const setupSocketIO = (app) => {
     return userSocketMap[userId];
   }
 
-  // Socket authentication middleware - extract JWT from cookies
+  // Socket authentication middleware - extract JWT from Authorization header or query
   io.use((socket, next) => {
     try {
-      // Extract cookies from handshake headers
-      const cookies = cookie.parse(socket.handshake.headers.cookie || "");
-      const accessToken = cookies.accessToken;
+      // Try to get token from query params (for socket.io client connection)
+      let accessToken =
+        socket.handshake.auth?.token || socket.handshake.query?.token;
 
+      // Fallback: try cookies (for legacy support)
       if (!accessToken) {
-        return next(new Error("Access token not found in cookies"));
+        const cookies = cookie.parse(socket.handshake.headers.cookie || "");
+        accessToken = cookies.accessToken;
       }
 
-      // Verify token using JwtService
-      const decoded = JwtService.verifyAccessToken(accessToken);
+      if (!accessToken) {
+        return next(new Error("Access token not found"));
+      }
+
+      // Verify token directly
+      const accessTokenSecret =
+        process.env.JWT_ACCESS_SECRET ||
+        process.env.SECRET_KEY ||
+        "ACCESS_SECRET";
+      const decoded = jwt.verify(accessToken, accessTokenSecret);
       socket.userId = decoded.id;
       socket.user = decoded;
 

@@ -74,9 +74,9 @@ const StaffManagement = () => {
   const fetchStaffMembers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllStaff();
-      console.log("Staff API Response:", response); // Debug log
-      setStaffMembers(response.staff || response.data?.staff || response || []);
+      const staffData = await getAllStaff();
+      // getAllStaff now returns array directly
+      setStaffMembers(Array.isArray(staffData) ? staffData : []);
     } catch (error) {
       console.error("Error fetching staff:", error);
       toast.error("Failed to load staff members");

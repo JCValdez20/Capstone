@@ -1,5 +1,5 @@
 import logo from "../assets/WashUpLogo.png";
-import React, { useEffect } from "react";
+import React from "react";
 import {
   Sidebar,
   SidebarProvider,
@@ -42,7 +42,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const AdminSidebar = ({ children }) => {
   const location = useLocation();
-  const { getCurrentAdmin, getCurrentStaff, logout } = useAuth();
+  const { getCurrentAdmin, getCurrentStaff, logout, isAdmin, user } = useAuth();
 
   // Determine the current user based on the current path
   const isStaffRoute = location.pathname.startsWith("/staff");
@@ -50,21 +50,18 @@ const AdminSidebar = ({ children }) => {
 
   const currentAdmin = getCurrentAdmin();
   const currentStaff = getCurrentStaff();
+  const userIsAdmin = isAdmin();
 
-  // Authentication validation based on route
-  useEffect(() => {
-    if (isStaffRoute && !currentStaff) {
-      // Staff route but no staff user - redirect to staff login
-      window.location.href = "/staff/login";
-      return;
-    }
-
-    if (isAdminRoute && !currentAdmin) {
-      // Admin route but no admin user - redirect to admin login
-      window.location.href = "/admin/login";
-      return;
-    }
-  }, [isStaffRoute, isAdminRoute, currentAdmin, currentStaff]);
+  // Debug logging
+  console.log("AdminSidebar Debug:", {
+    userIsAdmin,
+    user,
+    userRoles: user?.roles,
+    isStaffRoute,
+    isAdminRoute,
+    currentAdmin,
+    currentStaff,
+  });
 
   // Select the appropriate user based on current route
   let currentUser;
@@ -78,16 +75,14 @@ const AdminSidebar = ({ children }) => {
   }
 
   const handleLogout = () => {
-    // Determine which session to logout based on current route
-    if (isStaffRoute && currentStaff) {
-      logout("staff");
+    // Clear tokens and redirect based on current route
+    logout();
+
+    if (isStaffRoute) {
       window.location.href = "/staff/login";
-    } else if (isAdminRoute && currentAdmin) {
-      logout("admin");
+    } else if (isAdminRoute) {
       window.location.href = "/admin/login";
     } else {
-      // Fallback: logout all sessions
-      logout();
       window.location.href = "/";
     }
   };
@@ -136,7 +131,7 @@ const AdminSidebar = ({ children }) => {
       tooltip: "Messages & Chat",
     },
     // Show Staff Management only for admin routes and admin users
-    ...(!isStaffRoute && currentAdmin
+    ...(!isStaffRoute && userIsAdmin
       ? [
           {
             icon: Shield,

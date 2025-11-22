@@ -24,8 +24,8 @@ const UserManagement = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllUsers();
-      setUsers(response.data || response || []);
+      const usersData = await getAllUsers();
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       setError("Failed to fetch users: " + (error.message || "Unknown error"));
     } finally {
@@ -46,9 +46,10 @@ const UserManagement = () => {
     return matchesSearch && matchesRole;
   });
 
-  const customerCount = users.filter(
-    (user) => user.roles === "customer"
-  ).length;
+  const customerCount = users.filter((user) => {
+    const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
+    return roles.includes("customer");
+  }).length;
 
   if (loading) {
     return (

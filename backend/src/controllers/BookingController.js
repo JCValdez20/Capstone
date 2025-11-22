@@ -37,13 +37,42 @@ exports.getAvailableSlots = async (req, res) => {
     // Cancelled and no-show bookings DON'T block slots
     const bookedSlots = await Booking.find({
       date: selectedDate,
-      status: { $in: ["pending", "confirmed", "completed"] }, // 🎯 ONLY these statuses block slots
+      status: { $in: ["pending", "confirmed", "completed"] },
     }).distinct("timeSlot");
 
     // Available slots = All slots MINUS actively booked slots
-    const availableSlots = allSlots.filter(
-      (slot) => !bookedSlots.includes(slot)
-    );
+    let availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
+
+    // 🔥 ADDITIONAL LOGIC: Filter out past time slots for today
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    if (isToday) {
+      availableSlots = availableSlots.filter((slot) => {
+        // Parse the time slot to get hours
+        const timeSlotMatch = slot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (timeSlotMatch) {
+          let hours = parseInt(timeSlotMatch[1]);
+          const minutes = parseInt(timeSlotMatch[2]);
+          const period = timeSlotMatch[3].toUpperCase();
+
+          // Convert to 24-hour format
+          if (period === "PM" && hours !== 12) {
+            hours += 12;
+          } else if (period === "AM" && hours === 12) {
+            hours = 0;
+          }
+
+          // Create a date object for this time slot
+          const slotDateTime = new Date(selectedDate);
+          slotDateTime.setHours(hours, minutes, 0, 0);
+
+          // Only include if the slot time hasn't passed yet
+          return slotDateTime > now;
+        }
+        return true;
+      });
+    }
 
     return send.sendResponseMessage(
       res,
@@ -103,20 +132,26 @@ exports.createBooking = async (req, res) => {
     }
 
     // Prevent admin users from creating bookings - only customers can create bookings
-    if (user.roles === "admin") {
+    const userRoles = Array.isArray(user.roles) ? user.roles : [user.roles];
+
+    if (userRoles.includes("admin")) {
       return send.sendErrorMessage(
         res,
         403,
-        "Admin users cannot create bookings. Only customers can make bookings."
+        new Error(
+          "Admin users cannot create bookings. Only customers can make bookings."
+        )
       );
     }
 
     // Prevent staff users from creating bookings - only customers can create bookings
-    if (user.roles === "staff") {
+    if (userRoles.includes("staff")) {
       return send.sendErrorMessage(
         res,
         403,
-        "Staff users cannot create bookings. Only customers can make bookings."
+        new Error(
+          "Staff users cannot create bookings. Only customers can make bookings."
+        )
       );
     }
 
@@ -153,8 +188,42 @@ exports.createBooking = async (req, res) => {
       return send.sendErrorMessage(
         res,
         400,
-        "Cannot book appointments in the past"
+        new Error("Cannot book appointments in the past")
       );
+    }
+
+    // Check if booking is for today and if the time slot has already passed
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    if (isToday) {
+      // Parse the selected time slot to get hours
+      const timeSlotMatch = selectedTimeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (timeSlotMatch) {
+        let hours = parseInt(timeSlotMatch[1]);
+        const minutes = parseInt(timeSlotMatch[2]);
+        const period = timeSlotMatch[3].toUpperCase();
+
+        // Convert to 24-hour format
+        if (period === "PM" && hours !== 12) {
+          hours += 12;
+        } else if (period === "AM" && hours === 12) {
+          hours = 0;
+        }
+
+        // Create a date object for the selected time slot
+        const slotDateTime = new Date(selectedDate);
+        slotDateTime.setHours(hours, minutes, 0, 0);
+
+        // Check if the slot time has already passed
+        if (slotDateTime <= now) {
+          return send.sendErrorMessage(
+            res,
+            400,
+            new Error("Cannot book a time slot that has already passed")
+          );
+        }
+      }
     }
 
     // 🔥 CRITICAL: Check if time slot is already booked by ACTIVE bookings only
@@ -265,11 +334,15 @@ exports.getUserBookings = async (req, res) => {
     const userId = req.userData.id;
 
     // Ensure only customers can access their bookings
-    if (req.userData.roles !== "customer") {
+    const userRoles = Array.isArray(req.userData.roles)
+      ? req.userData.roles
+      : [req.userData.roles];
+
+    if (!userRoles.includes("customer")) {
       return send.sendErrorMessage(
         res,
         403,
-        "Only customers can view their bookings"
+        new Error("Only customers can view their bookings")
       );
     }
 
@@ -366,11 +439,15 @@ exports.cancelBooking = async (req, res) => {
     const userId = req.userData.id;
 
     // Ensure only customers can cancel bookings
-    if (req.userData.roles !== "customer") {
+    const userRoles = Array.isArray(req.userData.roles)
+      ? req.userData.roles
+      : [req.userData.roles];
+
+    if (!userRoles.includes("customer")) {
       return send.sendErrorMessage(
         res,
         403,
-        "Only customers can cancel their own bookings"
+        new Error("Only customers can cancel their own bookings")
       );
     }
 
@@ -414,7 +491,13 @@ exports.updateBookingStatus = async (req, res) => {
     const { status, notes, rejectionReason } = req.body;
 
     // Restrict admin/staff status updates to only: confirmed, completed, no-show, rejected
-    const allowedStatuses = ["confirmed", "completed", "no-show", "rejected"];
+    const allowedStatuses = [
+      "confirmed",
+      "completed",
+      "no-show",
+      "rejected",
+      "cancelled",
+    ];
 
     if (!allowedStatuses.includes(status)) {
       return send.sendErrorMessage(

@@ -23,27 +23,43 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   // const [searchParams] = useSearchParams();
 
-  const { login } = useAuth();
+  const { login, isCustomerAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Redirect if customer is already logged in
   useEffect(() => {
-    // Check for verification success message (only once)
+    if (!authLoading && isCustomerAuthenticated()) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [authLoading, isCustomerAuthenticated, navigate]);
+
+  // Check for verification success message
+  useEffect(() => {
     const state = location.state;
     if (state?.verified && state?.message) {
-      // Use setTimeout to ensure only one toast appears
       const timeoutId = setTimeout(() => {
         toast.success("Email Verified!", {
           description: state.message,
         });
       }, 100);
-
-      // Clear the state immediately to prevent multiple toasts
       window.history.replaceState({}, document.title);
 
       return () => clearTimeout(timeoutId);
     }
   }, [location.state]);
+
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,9 +67,15 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const result = await login({ email, password }, "customer");
+      // Import the new auth service
+      const authService = (await import("../../services/simpleAuthService"))
+        .default;
+      const result = await authService.login({ email, password });
 
       if (result.success) {
+        // Store tokens and user in AuthContext
+        login(result.accessToken, result.refreshToken, result.user);
+
         toast.success("Welcome back!", {
           description: "Successfully logged in. Redirecting to dashboard...",
         });
@@ -62,22 +84,19 @@ const Login = () => {
         // Check if email verification is required
         if (result.requiresVerification) {
           navigate("/verify-email", {
-            state: { email: email },
+            state: { email: result.email || email },
           });
           return;
         }
 
-        setError(result.error || "Login failed");
+        setError(result.message || "Login failed");
         toast.error("Login failed", {
           description:
-            result.error || "Please check your credentials and try again.",
+            result.message || "Please check your credentials and try again.",
         });
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "An unexpected error occurred";
+      const errorMessage = error.message || "An unexpected error occurred";
       setError(errorMessage);
       toast.error("Login error", {
         description: errorMessage,

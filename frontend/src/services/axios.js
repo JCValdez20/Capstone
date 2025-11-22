@@ -7,16 +7,21 @@ const axiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Enable cookies for authentication
 });
 
-// Remove the token-based auth logic since we're using cookies
-axiosInstance.interceptors.request.use((config) => {
-  // No need to add Authorization header - cookies are sent automatically
-  return config;
-});
+// Request interceptor - attach JWT from localStorage
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Add response interceptor to handle token expiration and automatic refresh
+// Response interceptor - handle 401 errors and token refresh
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -26,45 +31,65 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Don't attempt refresh if the failing request was already to /auth/refresh or /auth/me
+      // Don't attempt refresh if the failing request was already to /auth/refresh or /auth/login
       if (
         originalRequest.url?.includes("/auth/refresh") ||
-        originalRequest.url?.includes("/auth/me")
+        originalRequest.url?.includes("/auth/login")
       ) {
+        // Clear tokens and redirect to login
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+
+        const currentPath = window.location.pathname;
+        if (currentPath.includes("/admin")) {
+          window.location.href = "/admin/login";
+        } else if (currentPath.includes("/staff")) {
+          window.location.href = "/staff/login";
+        } else {
+          window.location.href = "/login";
+        }
         return Promise.reject(error);
       }
 
       try {
-        // Try to refresh the token
-        const refreshResponse = await axiosInstance.post("/auth/refresh");
+        const refreshToken = localStorage.getItem("refreshToken");
 
-        // Only retry if refresh was successful and user is logged in
-        if (refreshResponse.data.success && refreshResponse.data.loggedIn) {
+        if (!refreshToken) {
+          throw new Error("No refresh token available");
+        }
+
+        // Try to refresh the token
+        const refreshResponse = await axiosInstance.post("/auth/refresh", {
+          refreshToken,
+        });
+
+        if (refreshResponse.data.success && refreshResponse.data.accessToken) {
+          // Save new tokens
+          localStorage.setItem("accessToken", refreshResponse.data.accessToken);
+          localStorage.setItem(
+            "refreshToken",
+            refreshResponse.data.refreshToken
+          );
+
+          // Update Authorization header for retry
+          originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
+
           // Retry the original request
           return axiosInstance(originalRequest);
-        } else {
-          // User is not logged in, don't retry
-          return Promise.reject(error);
         }
       } catch (refreshError) {
-        // Refresh failed - redirect to login only if it's a legitimate 401 (not just no cookies)
-        console.warn(
-          "🔐 Authentication refresh failed:",
-          refreshError.response?.data?.message || refreshError.message
-        );
+        // Refresh failed - clear tokens and redirect to login
+        console.warn("🔐 Token refresh failed:", refreshError.message);
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
 
-        // Only redirect if the refresh error was a 401 (invalid/expired token)
-        // If it was a 200 with loggedIn: false, user just isn't logged in
-        if (refreshError.response?.status === 401) {
-          // Redirect to appropriate login page based on current path
-          const currentPath = window.location.pathname;
-          if (currentPath.includes("/admin")) {
-            window.location.href = "/admin/login";
-          } else if (currentPath.includes("/staff")) {
-            window.location.href = "/staff/login";
-          } else {
-            window.location.href = "/login";
-          }
+        const currentPath = window.location.pathname;
+        if (currentPath.includes("/admin")) {
+          window.location.href = "/admin/login";
+        } else if (currentPath.includes("/staff")) {
+          window.location.href = "/staff/login";
+        } else {
+          window.location.href = "/login";
         }
 
         return Promise.reject(error);

@@ -26,14 +26,15 @@ const AdminDashboard = () => {
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [usersRes, bookingsRes] = await Promise.all([
+      const [usersData, bookingsRes] = await Promise.all([
         getAllUsers(),
         getAllBookings(),
       ]);
 
-      const usersData = usersRes?.data || usersRes || [];
+      // getAllUsers now returns array directly
       setUsers(Array.isArray(usersData) ? usersData : []);
 
+      // Handle bookings response
       let bookingsData = [];
       if (bookingsRes?.data?.bookings) bookingsData = bookingsRes.data.bookings;
       else if (bookingsRes?.bookings) bookingsData = bookingsRes.bookings;
@@ -57,9 +58,18 @@ const AdminDashboard = () => {
   }, [fetchDashboardData]);
 
   const totalUsers = users.length;
-  const adminCount = users.filter((u) => u.roles === "admin").length;
-  const staffCount = users.filter((u) => u.roles === "staff").length;
-  const customerCount = users.filter((u) => u.roles === "customer").length;
+  const adminCount = users.filter((u) => {
+    const roles = Array.isArray(u.roles) ? u.roles : [u.roles];
+    return roles.includes("admin");
+  }).length;
+  const staffCount = users.filter((u) => {
+    const roles = Array.isArray(u.roles) ? u.roles : [u.roles];
+    return roles.includes("staff");
+  }).length;
+  const customerCount = users.filter((u) => {
+    const roles = Array.isArray(u.roles) ? u.roles : [u.roles];
+    return roles.includes("customer");
+  }).length;
 
   const totalBookings = bookings.length;
   const pendingBookings = bookings.filter((b) => b.status === "pending").length;
@@ -76,7 +86,10 @@ const AdminDashboard = () => {
 
   // Filter to only show customers in recent users
   const recentUsers = users
-    .filter((user) => user.roles === "customer") // Only include customers
+    .filter((user) => {
+      const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
+      return roles.includes("customer");
+    }) // Only include customers
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 5);
 

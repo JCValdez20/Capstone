@@ -1,138 +1,75 @@
 import { create } from "zustand";
-import { io } from "socket.io-client";
 import authService from "../services/authService";
 import bookingService from "../services/bookingService";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import adminService from "../services/adminService";
+import staffService from "../services/staffService";
+import socketService from "../services/socketService";
+import axios from "../services/axios";
 
 const initialState = {
   user: null,
   isLoggedIn: false,
-  role: null,
-  authType: null, // 'customer', 'admin', 'staff'
   isLoading: true,
   error: null,
-  socket: null,
-  onlineUsers: [],
 };
 
 export const useAuthStore = create((set, get) => ({
   ...initialState,
 
-  // Get current authenticated user using HTTP-only cookies
-  getCurrentAuth: async () => {
-    try {
-      const user = await authService.checkAuth();
-      return user;
-    } catch {
-      return null;
-    }
-  },
-
-  // Connect socket with JWT from cookies
-  connectSocket: () => {
-    const { user, socket: existingSocket } = get();
-
-    if (existingSocket?.connected) {
-      console.log("🔗 Socket already connected");
-      return;
-    }
-
-    if (!user) {
-      console.warn("⚠️ Cannot connect socket: No authenticated user");
-      return;
-    }
-
-    try {
-      console.log("🔗 Connecting socket for user:", user.id);
-
-      const socket = io(API_URL, {
-        withCredentials: true, // Send cookies with socket connection
-        transports: ["websocket", "polling"],
-      });
-
-      socket.on("connect", () => {
-        console.log("✅ Socket connected:", socket.id);
-        set({ socket });
-      });
-
-      socket.on("getOnlineUsers", (users) => {
-        console.log("👥 Online users updated:", users);
-        set({ onlineUsers: users });
-      });
-
-      socket.on("disconnect", () => {
-        console.log("❌ Socket disconnected");
-        set({ socket: null, onlineUsers: [] });
-      });
-
-      socket.on("connect_error", (error) => {
-        console.error("🔥 Socket connection error:", error.message);
-      });
-    } catch (error) {
-      console.error("🔥 Socket connection failed:", error);
-    }
-  },
-
-  disconnectSocket: () => {
-    const { socket } = get();
-    if (socket) {
-      console.log("🔌 Disconnecting socket");
-      socket.disconnect();
-      set({ socket: null, onlineUsers: [] });
-    }
-  },
-
-  clearAuth: () => {
-    const { disconnectSocket } = get();
-    disconnectSocket();
-    set({
-      user: null,
-      isLoggedIn: false,
-      role: null,
-      authType: null,
-      error: null,
-    });
-  },
-
+  /**
+   * Check authentication status - backend validates HttpOnly cookies
+   */
   checkAuth: async () => {
+    console.log("🔐 useAuthStore.checkAuth() - Starting...");
     set({ isLoading: true });
     try {
       const user = await authService.checkAuth();
+
+      console.log(
+        "👤 useAuthStore.checkAuth() - Result:",
+        user ? `User: ${user.email} (${user.roles})` : "No user"
+      );
+
       if (user) {
         set({
           user,
           isLoggedIn: true,
-          role: user.roles,
-          authType: user.roles,
           isLoading: false,
           error: null,
         });
 
-        // Connect socket if user is admin or staff
-        if (user.roles === "admin" || user.roles === "staff") {
-          get().connectSocket();
+        console.log(
+          "✅ useAuthStore.checkAuth() - Auth state set, user logged in"
+        );
+
+        // Connect socket for admin/staff
+        const userRoles = Array.isArray(user.roles) ? user.roles : [user.roles];
+        if (userRoles.includes("admin") || userRoles.includes("staff")) {
+          console.log(
+            "🔌 useAuthStore.checkAuth() - Connecting socket for",
+            user.roles
+          );
+          socketService.connect();
         }
 
         return user;
       } else {
+        console.log(
+          "❌ useAuthStore.checkAuth() - No user, clearing auth state"
+        );
         set({
           user: null,
           isLoggedIn: false,
-          role: null,
-          authType: null,
           isLoading: false,
           error: null,
         });
         return null;
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
+      console.error("🔥 useAuthStore.checkAuth() - Error:", error);
       set({
         user: null,
         isLoggedIn: false,
-        role: null,
-        authType: null,
         isLoading: false,
         error: error.message,
       });
@@ -140,6 +77,9 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  /**
+   * Login - backend sets HttpOnly cookies
+   */
   login: async (credentials, userRole = "customer") => {
     set({ isLoading: true, error: null });
 
@@ -157,15 +97,14 @@ export const useAuthStore = create((set, get) => ({
         set({
           user,
           isLoggedIn: true,
-          role: user.roles,
-          authType: user.roles,
           isLoading: false,
           error: null,
         });
 
-        // Connect socket if user is admin or staff
-        if (user.roles === "admin" || user.roles === "staff") {
-          get().connectSocket();
+        // Connect socket for admin/staff
+        const userRoles = Array.isArray(user.roles) ? user.roles : [user.roles];
+        if (userRoles.includes("admin") || userRoles.includes("staff")) {
+          socketService.connect();
         }
 
         return { success: true, user };
@@ -186,15 +125,32 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  /**
+   * Logout - backend clears HttpOnly cookies
+   */
   logout: async () => {
     try {
       await authService.logout();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      get().clearAuth();
+      socketService.disconnect();
+      set({
+        user: null,
+        isLoggedIn: false,
+        error: null,
+      });
     }
   },
+
+  /**
+   * Register new user
+   */
+  register: async (userData) => {
+    return await authService.register(userData);
+  },
+
+  // ===== AUTHENTICATION CHECKS =====
 
   isAuthenticated: () => {
     const { isLoggedIn, user } = get();
@@ -202,85 +158,203 @@ export const useAuthStore = create((set, get) => ({
   },
 
   isAdminAuthenticated: () => {
-    const { isAuthenticated } = get();
     const { user } = get();
-    return isAuthenticated() && user?.roles === "admin";
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    return get().isAuthenticated() && roles.includes("admin");
   },
 
   isStaffAuthenticated: () => {
-    const { isAuthenticated } = get();
     const { user } = get();
-    return isAuthenticated() && user?.roles === "staff";
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    return get().isAuthenticated() && roles.includes("staff");
   },
 
   isCustomerAuthenticated: () => {
-    const { isAuthenticated } = get();
     const { user } = get();
-    return isAuthenticated() && user?.roles === "customer";
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    return get().isAuthenticated() && roles.includes("customer");
   },
 
   isAdminOrStaff: () => {
-    const { isAuthenticated } = get();
     const { user } = get();
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
     return (
-      isAuthenticated() && (user?.roles === "admin" || user?.roles === "staff")
+      get().isAuthenticated() &&
+      (roles.includes("admin") || roles.includes("staff"))
     );
   },
 
   getCurrentAdmin: () => {
     const { user } = get();
-    return user?.roles === "admin" ? user : null;
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    return roles.includes("admin") ? user : null;
   },
 
   getCurrentStaff: () => {
     const { user } = get();
-    return user?.roles === "staff" ? user : null;
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    return roles.includes("staff") ? user : null;
   },
 
   getCurrentCustomer: () => {
     const { user } = get();
-    return user?.roles === "customer" ? user : null;
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles];
+    return roles.includes("customer") ? user : null;
   },
 
-  // Booking methods for role-based access
+  // ===== BOOKING METHODS =====
 
-  // Customer: Create a new booking
   createBooking: async (bookingData) => {
     return await bookingService.createBooking(bookingData);
   },
 
-  // Customer: Get user's own bookings
   getUserBookings: async (params = {}) => {
     return await bookingService.getUserBookings(params);
   },
 
-  // Customer: Cancel own booking
   cancelBooking: async (bookingId) => {
     return await bookingService.cancelBooking(bookingId);
   },
 
-  // Public: Get available time slots
   getAvailableSlots: async (date) => {
     return await bookingService.getAvailableSlots(date);
   },
 
-  // Admin/Staff: Get all bookings
   getAllBookings: async (params = {}) => {
     return await bookingService.getAllBookings(params);
   },
 
-  // Admin/Staff: Update booking status
   updateBookingStatus: async (bookingId, status, notes = "") => {
     return await bookingService.updateBookingStatus(bookingId, status, notes);
   },
 
-  // Admin/Staff: Update entire booking
   updateBooking: async (bookingId, bookingData) => {
     return await bookingService.updateBooking(bookingId, bookingData);
   },
 
-  // Admin/Staff: Get booking statistics
   getBookingStats: async () => {
     return await bookingService.getBookingStats();
   },
+
+  // ===== USER MANAGEMENT METHODS (Admin/Staff) =====
+
+  getAllUsers: async () => {
+    try {
+      const response = await adminService.getAllUsers();
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      throw error;
+    }
+  },
+
+  getUserById: async (userId) => {
+    try {
+      const response = await adminService.getUserById(userId);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      throw error;
+    }
+  },
+
+  updateUser: async (userId, userData) => {
+    try {
+      const response = await adminService.updateUser(userId, userData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating user:", error);
+      throw error;
+    }
+  },
+
+  deleteUser: async (userId) => {
+    try {
+      const response = await adminService.deleteUser(userId);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
+  },
+
+  // ===== STAFF MANAGEMENT METHODS (Admin only) =====
+
+  createStaffAccount: async (staffData) => {
+    try {
+      const response = await staffService.createStaffAccount(staffData);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating staff:", error);
+      throw error;
+    }
+  },
+
+  getAllStaff: async () => {
+    try {
+      const response = await staffService.getAllStaff();
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching staff:", error);
+      throw error;
+    }
+  },
+
+  updateStaffAccount: async (staffId, staffData) => {
+    try {
+      const response = await staffService.updateStaffAccount(
+        staffId,
+        staffData
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error updating staff:", error);
+      throw error;
+    }
+  },
+
+  deleteStaffAccount: async (staffId) => {
+    try {
+      const response = await staffService.deleteStaffAccount(staffId);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting staff:", error);
+      throw error;
+    }
+  },
+
+  resetStaffPassword: async (staffId, newPassword) => {
+    try {
+      const response = await staffService.resetStaffPassword(
+        staffId,
+        newPassword
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error resetting staff password:", error);
+      throw error;
+    }
+  },
+
+  // ===== PROFILE MANAGEMENT =====
+
+  updateUserData: async (userData) => {
+    try {
+      const response = await axios.put("/user/profile", userData);
+      if (response.data.success) {
+        const updatedUser = response.data.data;
+        set({ user: updatedUser });
+        return response.data;
+      }
+      throw new Error(response.data.message || "Failed to update profile");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw error;
+    }
+  },
+
+  // ===== SOCKET UTILITIES =====
+
+  getSocket: () => socketService.getSocket(),
+  getOnlineUsers: () => socketService.getOnlineUsers(),
 }));
