@@ -1052,7 +1052,9 @@ const BookingCard = ({
       </div>
 
       {/* Notes and Additional Info */}
-      {(booking.notes || booking.rejectionReason) && (
+      {(booking.notes ||
+        booking.rejectionReason ||
+        booking.cancellationReason) && (
         <div className="border-t border-gray-100 pt-3">
           {booking.notes && (
             <div className="bg-blue-50 p-3 rounded-lg mb-2">
@@ -1068,7 +1070,7 @@ const BookingCard = ({
             </div>
           )}
           {booking.rejectionReason && (
-            <div className="bg-red-50 p-3 rounded-lg">
+            <div className="bg-red-50 p-3 rounded-lg mb-2">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                 <div>
@@ -1077,6 +1079,21 @@ const BookingCard = ({
                   </span>
                   <p className="text-sm text-red-900 mt-1">
                     {booking.rejectionReason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {booking.cancellationReason && (
+            <div className="bg-orange-50 p-3 rounded-lg">
+              <div className="flex items-start gap-2">
+                <XCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="text-xs font-medium text-orange-700 uppercase tracking-wide">
+                    Cancellation Reason
+                  </span>
+                  <p className="text-sm text-orange-900 mt-1">
+                    {booking.cancellationReason}
                   </p>
                 </div>
               </div>

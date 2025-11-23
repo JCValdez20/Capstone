@@ -2,6 +2,16 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 import { Skeleton, SkeletonTable } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   Calendar,
@@ -24,6 +34,9 @@ const BookingHistory = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState(null);
+  const [cancellationReason, setCancellationReason] = useState("");
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -47,9 +60,20 @@ const BookingHistory = () => {
     fetchBookings();
   }, [fetchBookings]);
 
-  const handleCancelBooking = async (bookingId) => {
+  const handleOpenCancelDialog = (booking) => {
+    setBookingToCancel(booking);
+    setCancellationReason("");
+    setIsCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!bookingToCancel) return;
+
     try {
-      await cancelBooking(bookingId);
+      await cancelBooking(bookingToCancel._id, cancellationReason);
+      setIsCancelDialogOpen(false);
+      setBookingToCancel(null);
+      setCancellationReason("");
       // Refresh bookings after cancellation
       fetchBookings();
       toast.success("Booking cancelled", {
@@ -77,6 +101,8 @@ const BookingHistory = () => {
         return <XCircle className="w-4 h-4 text-red-500" />;
       case "no-show":
         return <AlertCircle className="w-4 h-4 text-orange-500" />;
+      case "rejected":
+        return <XCircle className="w-4 h-4 text-purple-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-400" />;
     }
@@ -94,6 +120,8 @@ const BookingHistory = () => {
         return "Cancelled";
       case "no-show":
         return "No Show";
+      case "rejected":
+        return "Rejected";
       default:
         return "Unknown";
     }
@@ -111,6 +139,8 @@ const BookingHistory = () => {
         return "text-red-600 bg-red-50";
       case "no-show":
         return "text-orange-600 bg-orange-50";
+      case "rejected":
+        return "text-purple-600 bg-purple-50";
       default:
         return "text-gray-600 bg-gray-50";
     }
@@ -200,6 +230,7 @@ const BookingHistory = () => {
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                   <option value="no-show">No Show</option>
+                  <option value="rejected">Rejected</option>
                 </select>
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <ChevronRight className="w-4 h-4 text-gray-400 rotate-90" />
@@ -314,7 +345,25 @@ const BookingHistory = () => {
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
                           <div className="max-w-xs">
-                            {booking.notes ? (
+                            {booking.status === "rejected" &&
+                            booking.rejectionReason ? (
+                              <div className="text-xs text-purple-700 bg-purple-50 rounded-lg p-2 border border-purple-200">
+                                <div className="font-semibold mb-1 text-purple-800">
+                                  Rejection Reason:
+                                </div>
+                                <div
+                                  className="truncate"
+                                  title={booking.rejectionReason}
+                                >
+                                  {booking.rejectionReason.length > 50
+                                    ? `${booking.rejectionReason.substring(
+                                        0,
+                                        50
+                                      )}...`
+                                    : booking.rejectionReason}
+                                </div>
+                              </div>
+                            ) : booking.notes ? (
                               <div className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2 border">
                                 <div className="truncate" title={booking.notes}>
                                   {booking.notes.length > 50
@@ -337,17 +386,7 @@ const BookingHistory = () => {
                             {(booking.status === "pending" ||
                               booking.status === "confirmed") && (
                               <button
-                                onClick={() => {
-                                  toast("Cancel booking?", {
-                                    description:
-                                      "Are you sure you want to cancel this booking?",
-                                    action: {
-                                      label: "Cancel Booking",
-                                      onClick: () =>
-                                        handleCancelBooking(booking._id),
-                                    },
-                                  });
-                                }}
+                                onClick={() => handleOpenCancelDialog(booking)}
                                 className="text-xs text-red-600 hover:text-red-800 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors border border-red-200 hover:border-red-300"
                               >
                                 Cancel
@@ -380,6 +419,46 @@ const BookingHistory = () => {
           </div>
         </>
       )}
+
+      {/* Cancellation Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Booking</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for cancelling this booking (optional).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Cancellation Reason
+              </label>
+              <Textarea
+                placeholder="e.g., Schedule conflict, Changed plans, etc."
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCancelDialogOpen(false);
+                setBookingToCancel(null);
+                setCancellationReason("");
+              }}
+            >
+              Keep Booking
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmCancel}>
+              Cancel Booking
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

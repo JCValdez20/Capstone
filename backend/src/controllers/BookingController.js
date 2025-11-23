@@ -436,6 +436,7 @@ exports.getAllBookings = async (req, res) => {
 exports.cancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
+    const { cancellationReason } = req.body;
     const userId = req.userData.id;
 
     // Ensure only customers can cancel bookings
@@ -468,7 +469,22 @@ exports.cancelBooking = async (req, res) => {
 
     // 🔥 WHEN CANCELLED: Status changes to 'cancelled'
     // This automatically makes the time slot AVAILABLE again!
-    const updatedData = updateTimestamp({ status: "cancelled" });
+    const updatedData = updateTimestamp({
+      status: "cancelled",
+      cancellationReason: cancellationReason || "Cancelled by customer",
+      updatedBy: userId,
+    });
+
+    // Add to status history
+    if (!booking.statusHistory) {
+      booking.statusHistory = [];
+    }
+    booking.statusHistory.push({
+      status: "cancelled",
+      updatedBy: userId,
+      updatedAt: new Date(),
+      reason: cancellationReason || "Cancelled by customer",
+    });
 
     Object.assign(booking, updatedData);
     await booking.save();

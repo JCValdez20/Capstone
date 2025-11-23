@@ -42,9 +42,11 @@ class BookingService {
   }
 
   // Cancel a booking
-  async cancelBooking(bookingId) {
+  async cancelBooking(bookingId, cancellationReason = "") {
     try {
-      const response = await axios.patch(`/bookings/cancel/${bookingId}`, {});
+      const response = await axios.patch(`/bookings/cancel/${bookingId}`, {
+        cancellationReason,
+      });
       return response.data;
     } catch (error) {
       throw this.handleError(error);

@@ -82,6 +82,12 @@ const bookingSchema = new mongoose.Schema({
     maxlength: 500,
   },
 
+  // Cancellation reason - provided when customer cancels
+  cancellationReason: {
+    type: String,
+    maxlength: 500,
+  },
+
   // Track who updated the booking
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,

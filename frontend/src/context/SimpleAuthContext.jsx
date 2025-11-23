@@ -97,7 +97,8 @@ export const AuthProvider = ({ children }) => {
   // Booking methods - delegate to bookingService
   const getUserBookings = (params = {}) =>
     bookingService.getUserBookings(params);
-  const cancelBooking = (bookingId) => bookingService.cancelBooking(bookingId);
+  const cancelBooking = (bookingId, cancellationReason) =>
+    bookingService.cancelBooking(bookingId, cancellationReason);
   const createBooking = (bookingData) =>
     bookingService.createBooking(bookingData);
   const getAvailableSlots = (date) => bookingService.getAvailableSlots(date);
