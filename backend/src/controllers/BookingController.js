@@ -1,7 +1,17 @@
 const Booking = require("../models/Booking");
 const User = require("../models/User"); // Import User model to ensure it's registered
-
+const Conversation = require("../models/Messages");
 const send = require("../utils/Response");
+const socketManager = require("../utils/Socket");
+const {
+  validateServiceCombination,
+  calculateTotalDuration,
+  calculateEndTime,
+  generateAvailableSlots,
+  checkTimeOverlap,
+  SERVICE_CATALOG,
+  timeStringToHours
+} = require("../config/services");
 
 // Helper function to update timestamps
 const updateTimestamp = (bookingData) => {
@@ -9,14 +19,62 @@ const updateTimestamp = (bookingData) => {
   return bookingData;
 };
 
-// Get available time slots for a date - REAL-TIME AVAILABILITY
+// Get available time slots for a date - DURATION-AWARE SCHEDULING
 exports.getAvailableSlots = async (req, res) => {
   try {
     const { date } = req.params;
+    const { services } = req.query; // Expected: comma-separated service names or JSON array
 
     const selectedDate = new Date(date);
 
-    // All possible time slots - 9 AM to 9 PM
+    // Parse services from query parameter
+    let serviceNames = [];
+    if (services) {
+      try {
+        // Try parsing as JSON array first
+        serviceNames = JSON.parse(services);
+      } catch (e) {
+        // Fallback to comma-separated string
+        serviceNames = services.split(',').map(s => s.trim());
+      }
+    }
+
+    // Get existing ACTIVE bookings for this date
+    const existingBookings = await Booking.find({
+      date: selectedDate,
+      status: { $in: ["pending", "confirmed", "completed"] },
+    }).select('timeSlot endTime totalDuration services service');
+
+    // If services are provided, generate duration-aware slots
+    if (serviceNames.length > 0) {
+      // Validate service combination
+      const validation = validateServiceCombination(serviceNames);
+      if (!validation.valid) {
+        return send.sendErrorMessage(res, 400, validation.error);
+      }
+
+      // Generate available slots based on service duration
+      const availableSlots = generateAvailableSlots(
+        serviceNames,
+        selectedDate,
+        existingBookings
+      );
+
+      return send.sendResponseMessage(
+        res,
+        200,
+        {
+          date: selectedDate,
+          services: serviceNames,
+          totalDuration: calculateTotalDuration(serviceNames),
+          availableSlots,
+          availableCount: availableSlots.length,
+        },
+        "Available slots retrieved successfully"
+      );
+    }
+
+    // Legacy mode: Return simple hourly slots for backward compatibility
     const allSlots = [
       "9:00 AM",
       "10:00 AM",
@@ -33,44 +91,18 @@ exports.getAvailableSlots = async (req, res) => {
       "9:00 PM",
     ];
 
-    // 🔥 KEY LOGIC: Only slots with ACTIVE bookings are unavailable
-    // Cancelled and no-show bookings DON'T block slots
-    const bookedSlots = await Booking.find({
-      date: selectedDate,
-      status: { $in: ["pending", "confirmed", "completed"] },
-    }).distinct("timeSlot");
-
-    // Available slots = All slots MINUS actively booked slots
+    const bookedSlots = existingBookings.map(b => b.timeSlot);
     let availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
 
-    // 🔥 ADDITIONAL LOGIC: Filter out past time slots for today
+    // Filter out past time slots for today
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
 
     if (isToday) {
       availableSlots = availableSlots.filter((slot) => {
-        // Parse the time slot to get hours
-        const timeSlotMatch = slot.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if (timeSlotMatch) {
-          let hours = parseInt(timeSlotMatch[1]);
-          const minutes = parseInt(timeSlotMatch[2]);
-          const period = timeSlotMatch[3].toUpperCase();
-
-          // Convert to 24-hour format
-          if (period === "PM" && hours !== 12) {
-            hours += 12;
-          } else if (period === "AM" && hours === 12) {
-            hours = 0;
-          }
-
-          // Create a date object for this time slot
-          const slotDateTime = new Date(selectedDate);
-          slotDateTime.setHours(hours, minutes, 0, 0);
-
-          // Only include if the slot time hasn't passed yet
-          return slotDateTime > now;
-        }
-        return true;
+        const slotHour = timeStringToHours(slot);
+        const currentHour = now.getHours() + now.getMinutes() / 60;
+        return slotHour > currentHour;
       });
     }
 
@@ -91,11 +123,12 @@ exports.getAvailableSlots = async (req, res) => {
   }
 };
 
-// Create a new booking - PREVENTS DOUBLE BOOKING
+// Create a new booking - PREVENTS DOUBLE BOOKING WITH DURATION AWARENESS
 exports.createBooking = async (req, res) => {
   try {
     const {
       service,
+      services: requestedServices,
       date,
       time,
       timeSlot,
@@ -171,7 +204,24 @@ exports.createBooking = async (req, res) => {
       return send.sendErrorMessage(res, 400, "Time slot is required");
     }
 
-    if (!service) {
+    // Determine if this is a multi-service or single-service booking
+    let serviceNames = [];
+    let isMultiService = false;
+
+    if (requestedServices && Array.isArray(requestedServices) && requestedServices.length > 0) {
+      // Multi-service booking
+      serviceNames = requestedServices;
+      isMultiService = true;
+
+      // Validate service combination
+      const validation = validateServiceCombination(serviceNames);
+      if (!validation.valid) {
+        return send.sendErrorMessage(res, 400, validation.error);
+      }
+    } else if (service) {
+      // Legacy single-service booking
+      serviceNames = [service];
+    } else {
       return send.sendErrorMessage(res, 400, "Service is required");
     }
 
@@ -226,24 +276,48 @@ exports.createBooking = async (req, res) => {
       }
     }
 
-    // 🔥 CRITICAL: Check if time slot is already booked by ACTIVE bookings only
-    const existingBooking = await Booking.findOne({
-      date: selectedDate,
-      timeSlot: selectedTimeSlot,
-      status: { $in: ["pending", "confirmed", "completed"] }, // 🎯 Only active bookings block slots
-    });
-
-    if (existingBooking) {
-      return send.sendErrorMessage(res, 409, "Time slot is already booked");
+    // Calculate duration and end time for this booking
+    const totalDuration = calculateTotalDuration(serviceNames);
+    const endTimeResult = calculateEndTime(selectedTimeSlot, totalDuration);
+    
+    if (!endTimeResult.valid) {
+      return send.sendErrorMessage(res, 400, new Error(endTimeResult.error));
     }
+
+    const endTime = endTimeResult.endTime;
+
+    // 🔥 CRITICAL: Check for time overlap with ACTIVE bookings
+    const existingBookings = await Booking.find({
+      date: selectedDate,
+      status: { $in: ["pending", "confirmed", "completed"] },
+    }).select('timeSlot endTime totalDuration services service');
+
+    const hasOverlap = checkTimeOverlap(selectedTimeSlot, endTime, existingBookings);
+    if (hasOverlap) {
+      return send.sendErrorMessage(
+        res,
+        409,
+        `Time slot conflicts with existing booking. Your booking (${selectedTimeSlot} - ${endTime}) overlaps with another appointment.`
+      );
+    }
+
+    // Build services array with duration info
+    const servicesArray = serviceNames.map(serviceName => ({
+      name: serviceName,
+      duration: SERVICE_CATALOG[serviceName].duration
+    }));
 
     // Create booking data with timestamp
     const bookingData = updateTimestamp({
       user: userId,
-      service,
+      // Legacy field: only populate for single-service bookings to avoid enum validation errors
+      service: isMultiService ? undefined : (service || serviceNames[0]),
+      services: servicesArray,
+      totalDuration,
+      endTime,
       date: selectedDate,
       timeSlot: selectedTimeSlot,
-      vehicle: vehicle || "motorcycle", // Default to motorcycle if not provided
+      vehicle: vehicle || "motorcycle",
       notes: notes || specialInstructions || "",
       status: "pending",
       createdAt: new Date(),
@@ -356,6 +430,80 @@ exports.getUserBookings = async (req, res) => {
       200,
       bookings,
       "Bookings retrieved successfully"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Validate service combination - NEW ENDPOINT
+exports.validateServices = async (req, res) => {
+  try {
+    const { services } = req.body;
+
+    if (!services || !Array.isArray(services) || services.length === 0) {
+      return send.sendErrorMessage(res, 400, "Services array is required");
+    }
+
+    // Validate service combination
+    const validation = validateServiceCombination(services);
+    
+    if (!validation.valid) {
+      return send.sendResponseMessage(
+        res,
+        200,
+        {
+          valid: false,
+          error: validation.error,
+          services: services,
+        },
+        "Service combination is invalid"
+      );
+    }
+
+    // Calculate total duration
+    const totalDuration = calculateTotalDuration(services);
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      {
+        valid: true,
+        services: services,
+        totalDuration: totalDuration,
+        details: services.map(serviceName => ({
+          name: serviceName,
+          duration: SERVICE_CATALOG[serviceName].duration,
+          category: SERVICE_CATALOG[serviceName].category
+        }))
+      },
+      "Service combination is valid"
+    );
+  } catch (error) {
+    return send.sendErrorMessage(res, 500, error);
+  }
+};
+
+// Get all services catalog - NEW ENDPOINT
+exports.getServicesCatalog = async (req, res) => {
+  try {
+    const catalog = Object.entries(SERVICE_CATALOG).map(([name, details]) => ({
+      name,
+      ...details
+    }));
+
+    return send.sendResponseMessage(
+      res,
+      200,
+      {
+        services: catalog,
+        shopHours: {
+          open: "9:00 AM",
+          close: "9:00 PM",
+          totalHours: 12
+        }
+      },
+      "Services catalog retrieved successfully"
     );
   } catch (error) {
     return send.sendErrorMessage(res, 500, error);

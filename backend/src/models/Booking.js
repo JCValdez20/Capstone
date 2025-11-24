@@ -8,7 +8,36 @@ const bookingSchema = new mongoose.Schema({
     required: true,
   },
 
-  // Service Details - Based on your image
+  // Service Details - Can be single or multiple services
+  services: {
+    type: [{
+      name: {
+        type: String,
+        enum: [
+          "UV Graphene Ceramic Coating",
+          "Powder Coating",
+          "Moto/Oto VIP",
+          "Full Moto/Oto SPA",
+          "Modernized Interior Detailing",
+          "Modernized Engine Detailing",
+        ],
+        required: true,
+      },
+      duration: {
+        type: Number, // Duration in hours
+        required: true,
+      },
+    }],
+    required: true,
+    validate: {
+      validator: function(services) {
+        return services && services.length > 0;
+      },
+      message: 'At least one service must be selected'
+    }
+  },
+
+  // Legacy service field for backward compatibility
   service: {
     type: String,
     enum: [
@@ -19,6 +48,12 @@ const bookingSchema = new mongoose.Schema({
       "Modernized Interior Detailing",
       "Modernized Engine Detailing",
     ],
+    required: false,
+  },
+
+  // Total duration in hours (calculated from services)
+  totalDuration: {
+    type: Number,
     required: true,
   },
 
@@ -28,6 +63,7 @@ const bookingSchema = new mongoose.Schema({
     required: true,
   },
 
+  // Start time slot
   timeSlot: {
     type: String,
     required: true,
@@ -46,6 +82,12 @@ const bookingSchema = new mongoose.Schema({
       "8:00 PM",
       "9:00 PM",
     ],
+  },
+
+  // End time (calculated based on start time + duration)
+  endTime: {
+    type: String,
+    required: true,
   },
 
   // Status Management

@@ -33,11 +33,12 @@ import {
 } from "lucide-react";
 
 const Bookings = () => {
-  const { user, createBooking, getAvailableSlots } = useAuth();
+  const { user, createBooking, getAvailableSlots, validateServices } =
+    useAuth();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-  const [selectedService, setSelectedService] = useState(null);
+  const [selectedServices, setSelectedServices] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState("motorcycle");
   const [notes, setNotes] = useState("");
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -47,6 +48,8 @@ const Bookings = () => {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [error, setError] = useState("");
+  const [serviceValidation, setServiceValidation] = useState(null);
+  const [loadingValidation, setLoadingValidation] = useState(false);
 
   // Get user's full name or default to "User"
   const fullName =
@@ -93,41 +96,64 @@ const Bookings = () => {
       id: "UV Graphene Ceramic Coating",
       name: "UV Graphene Ceramic Coating",
       description: "Premium ceramic coating protection",
+      duration: 4,
+      category: "coating",
     },
     {
       id: "Powder Coating",
       name: "Powder Coating",
       description: "Durable powder coating finish",
+      duration: 2,
+      category: "coating",
     },
     {
       id: "Moto/Oto VIP",
       name: "Moto/Oto VIP",
       description: "VIP motorcycle treatment",
+      duration: 3,
+      category: "package",
     },
     {
       id: "Full Moto/Oto SPA",
       name: "Full Moto/Oto SPA",
       description: "Complete spa treatment",
+      duration: 4,
+      category: "package",
     },
     {
       id: "Modernized Interior Detailing",
       name: "Modernized Interior Detailing",
       description: "Interior detailing service",
+      duration: 2,
+      category: "detailing",
     },
     {
       id: "Modernized Engine Detailing",
       name: "Modernized Engine Detailing",
       description: "Engine cleaning and detailing",
+      duration: 1,
+      category: "detailing",
     },
   ];
 
-  // Fetch available slots when date is selected
+  // Validate service combination when services change
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedServices.length > 0) {
+      validateServiceCombination();
+    } else {
+      setServiceValidation(null);
+      setAvailableSlots([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServices]);
+
+  // Fetch available slots when date or validated services change
+  useEffect(() => {
+    if (selectedDate && serviceValidation?.valid) {
       fetchAvailableSlots();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+  }, [selectedDate, serviceValidation]);
 
   // Helper function to format date without timezone issues
   const formatDateForAPI = (date) => {
@@ -137,21 +163,64 @@ const Bookings = () => {
     return `${year}-${month}-${day}`;
   };
 
+  // Validate service combination
+  const validateServiceCombination = async () => {
+    setLoadingValidation(true);
+    try {
+      const validation = await validateServices(selectedServices);
+
+      // Ensure validation object has expected structure
+      const validationResult = validation || {
+        valid: false,
+        error: "Validation failed",
+      };
+      setServiceValidation(validationResult);
+
+      if (!validationResult.valid) {
+        toast.error("Invalid Service Combination", {
+          description:
+            validationResult.error ||
+            "This combination of services is not allowed",
+        });
+        setAvailableSlots([]);
+        setSelectedTimeSlot(null);
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+      const errorMessage = error.message || "Failed to validate services";
+      toast.error("Failed to validate services", {
+        description: errorMessage,
+      });
+      setServiceValidation({ valid: false, error: errorMessage });
+      setAvailableSlots([]);
+      setSelectedTimeSlot(null);
+    } finally {
+      setLoadingValidation(false);
+    }
+  };
+
   const fetchAvailableSlots = async () => {
-    if (!selectedDate) return;
+    if (!selectedDate || selectedServices.length === 0) return;
 
     setLoadingSlots(true);
     try {
       const dateString = formatDateForAPI(selectedDate);
-      const slots = await getAvailableSlots(dateString);
+      const result = await getAvailableSlots(dateString, selectedServices);
 
-      setAvailableSlots(slots);
-      setSelectedTimeSlot(null); // Reset selected time slot
+      // Handle duration-aware slots
+      if (result.slots) {
+        setAvailableSlots(result.slots);
+      } else {
+        // Legacy format
+        setAvailableSlots(result);
+      }
 
-      if (slots.length === 0) {
+      setSelectedTimeSlot(null);
+
+      if ((result.slots || result).length === 0) {
         toast.info("No slots available", {
           description:
-            "All time slots are booked for this date. Please try another date.",
+            "No available slots for this date with selected services. Try another date.",
         });
       }
     } catch (error) {
@@ -169,7 +238,8 @@ const Bookings = () => {
   };
 
   const handleBooking = async () => {
-    if (!selectedDate || !selectedTimeSlot || !selectedService) return;
+    if (!selectedDate || !selectedTimeSlot || selectedServices.length === 0)
+      return;
 
     // Verify user object is available (JWT is in HttpOnly cookie)
     if (!user) {
@@ -186,9 +256,9 @@ const Bookings = () => {
     setBookingLoading(true);
     try {
       const bookingData = {
-        service: selectedService.id,
+        services: selectedServices,
         date: formatDateForAPI(selectedDate),
-        timeSlot: selectedTimeSlot.time,
+        timeSlot: selectedTimeSlot.startTime || selectedTimeSlot.time,
         vehicle: selectedVehicle,
         notes: notes.trim(),
       };
@@ -197,12 +267,14 @@ const Bookings = () => {
       await createBooking(bookingData);
       setBookingSuccess(true);
 
+      const serviceName =
+        selectedServices.length === 1
+          ? selectedServices[0]
+          : `${selectedServices.length} services`;
+      const timeSlotDisplay =
+        selectedTimeSlot.startTime || selectedTimeSlot.time;
       toast.success("Booking confirmed!", {
-        description: `Your ${
-          selectedService.name
-        } appointment on ${selectedDate.toLocaleDateString()} at ${
-          selectedTimeSlot.time
-        } has been booked.`,
+        description: `Your ${serviceName} appointment on ${selectedDate.toLocaleDateString()} at ${timeSlotDisplay} has been booked.`,
         action: {
           label: "View History",
           onClick: () => (window.location.href = "/dashboard/booking-history"),
@@ -213,7 +285,8 @@ const Bookings = () => {
       setTimeout(() => {
         setSelectedDate(null);
         setSelectedTimeSlot(null);
-        setSelectedService(null);
+        setSelectedServices([]);
+        setServiceValidation(null);
         setSelectedVehicle("motorcycle");
         setNotes("");
         setBookingSuccess(false);
@@ -299,22 +372,76 @@ const Bookings = () => {
     setError(""); // Clear any existing errors
   };
 
-  const handleServiceSelect = (service) => {
-    setSelectedService(service);
-    setError(""); // Clear any existing errors
+  const handleServiceToggle = (serviceId) => {
+    setSelectedServices((prev) => {
+      if (prev.includes(serviceId)) {
+        return prev.filter((id) => id !== serviceId);
+      } else {
+        return [...prev, serviceId];
+      }
+    });
+    setSelectedTimeSlot(null);
+    setError("");
+  };
+
+  const getTotalDuration = () => {
+    if (serviceValidation?.totalDuration) {
+      return serviceValidation.totalDuration;
+    }
+    return selectedServices.reduce((total, serviceId) => {
+      const service = services.find((s) => s.id === serviceId);
+      return total + (service?.duration || 0);
+    }, 0);
+  };
+
+  // Check if a service is incompatible with currently selected services
+  const isServiceIncompatible = (serviceId) => {
+    if (selectedServices.length === 0 || selectedServices.includes(serviceId)) {
+      return false;
+    }
+
+    // Define incompatible combinations (matches backend validation)
+    const incompatiblePairs = [
+      ["UV Graphene Ceramic Coating", "Powder Coating"],
+      ["Powder Coating", "Moto/Oto VIP"],
+      ["Powder Coating", "Full Moto/Oto SPA"],
+      ["Moto/Oto VIP", "Full Moto/Oto SPA"],
+      ["Moto/Oto VIP", "Modernized Interior Detailing"],
+      ["Moto/Oto VIP", "Modernized Engine Detailing"],
+      ["Full Moto/Oto SPA", "Modernized Interior Detailing"],
+      ["Full Moto/Oto SPA", "Modernized Engine Detailing"],
+    ];
+
+    // Check if the service conflicts with any selected service
+    for (const pair of incompatiblePairs) {
+      if (pair.includes(serviceId)) {
+        const otherService = pair[0] === serviceId ? pair[1] : pair[0];
+        if (selectedServices.includes(otherService)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   };
 
   // Helper function to check if a time slot has passed for today
   const isTimeSlotPassed = (timeSlot) => {
-    if (!selectedDate) return false;
+    if (!selectedDate || !timeSlot) return false;
 
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
 
     if (!isToday) return false;
 
-    // Parse the time slot
-    const timeSlotMatch = timeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    // Parse the time slot (handles both "9:00 AM" and object with startTime)
+    const timeString =
+      typeof timeSlot === "string"
+        ? timeSlot
+        : timeSlot.startTime || timeSlot.time;
+    if (!timeString) return false;
+
+    const timeSlotMatch = timeString.match(/(\d+):(\d+)\s*(AM|PM)/i);
     if (!timeSlotMatch) return false;
 
     let hours = parseInt(timeSlotMatch[1]);
@@ -419,56 +546,97 @@ const Bookings = () => {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    {services.map((service, index) => (
-                      <div
-                        key={service.id}
-                        onClick={() => handleServiceSelect(service)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                          selectedService?.id === service.id
-                            ? "border-red-500 bg-red-50 shadow-sm"
-                            : "border-gray-200 hover:border-red-200 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h3
-                              className={`font-medium text-sm ${
-                                selectedService?.id === service.id
-                                  ? "text-red-900"
-                                  : "text-gray-900"
+                    {services.map((service, index) => {
+                      const isIncompatible = isServiceIncompatible(service.id);
+                      const isSelected = selectedServices.includes(service.id);
+
+                      return (
+                        <div
+                          key={service.id}
+                          onClick={() =>
+                            !isIncompatible && handleServiceToggle(service.id)
+                          }
+                          className={`p-3 rounded-lg border transition-all duration-200 ${
+                            isIncompatible
+                              ? "border-gray-200 bg-gray-50 opacity-50 blur-[0.5px] cursor-not-allowed"
+                              : isSelected
+                              ? "border-red-500 bg-red-50 shadow-sm cursor-pointer"
+                              : "border-gray-200 hover:border-red-200 hover:bg-gray-50 cursor-pointer"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h3
+                                className={`font-medium text-sm ${
+                                  isIncompatible
+                                    ? "text-gray-400"
+                                    : isSelected
+                                    ? "text-red-900"
+                                    : "text-gray-900"
+                                }`}
+                              >
+                                {service.name}
+                              </h3>
+                              <p
+                                className={`text-xs mt-1 ${
+                                  isIncompatible
+                                    ? "text-gray-400"
+                                    : isSelected
+                                    ? "text-red-700"
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {service.description}
+                              </p>
+                              <div className="flex gap-1 mt-1">
+                                <span
+                                  className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isIncompatible
+                                      ? "bg-gray-100 text-gray-400"
+                                      : "bg-gray-100 text-gray-700"
+                                  }`}
+                                >
+                                  {service.duration}h
+                                </span>
+                              </div>
+                            </div>
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                isIncompatible
+                                  ? "bg-gray-200 text-gray-400"
+                                  : isSelected
+                                  ? "bg-red-500 text-white"
+                                  : "bg-gray-100 text-gray-400"
                               }`}
                             >
-                              {service.name}
-                            </h3>
-                            <p
-                              className={`text-xs mt-1 ${
-                                selectedService?.id === service.id
-                                  ? "text-red-700"
-                                  : "text-gray-600"
-                              }`}
-                            >
-                              {service.description}
-                            </p>
-                          </div>
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              selectedService?.id === service.id
-                                ? "bg-red-500 text-white"
-                                : "bg-gray-100 text-gray-400"
-                            }`}
-                          >
-                            {selectedService?.id === service.id ? (
-                              <Check className="w-4 h-4" />
-                            ) : (
-                              <span className="text-xs font-semibold">
-                                {index + 1}
-                              </span>
-                            )}
+                              {isIncompatible ? (
+                                <X className="w-4 h-4" />
+                              ) : isSelected ? (
+                                <Check className="w-4 h-4" />
+                              ) : (
+                                <span className="text-xs font-semibold">
+                                  {index + 1}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  {selectedServices.length > 0 && serviceValidation && (
+                    <div className="mt-3">
+                      {serviceValidation.valid ? (
+                        <div className="text-xs bg-green-50 border border-green-200 rounded p-2 text-green-800">
+                          ✓ Valid • {serviceValidation.totalDuration}h total
+                        </div>
+                      ) : (
+                        <div className="text-xs bg-red-50 border border-red-200 rounded p-2 text-red-800">
+                          {serviceValidation.error}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -581,23 +749,43 @@ const Bookings = () => {
                     ) : (
                       <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                         {availableSlots.map((slot) => {
-                          const isPast = isTimeSlotPassed(slot.time);
+                          // Handle both legacy format (slot.time) and new format (slot.startTime/endTime)
+                          const slotTime = slot.startTime || slot.time;
+                          const isPast = isTimeSlotPassed(slotTime);
+                          const isSelected =
+                            selectedTimeSlot?.startTime === slot.startTime ||
+                            selectedTimeSlot?.time === slotTime;
+
                           return (
                             <button
-                              key={slot.time}
+                              key={slotTime}
                               onClick={() =>
                                 !isPast && setSelectedTimeSlot(slot)
                               }
                               disabled={isPast}
-                              className={`p-3 rounded-md border-2 transition-all duration-200 text-sm font-medium ${
+                              className={`p-2.5 rounded-md border-2 transition-all duration-200 text-xs font-medium ${
                                 isPast
                                   ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                                  : selectedTimeSlot?.time === slot.time
+                                  : isSelected
                                   ? "border-green-500 bg-green-50 text-green-700"
                                   : "border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-700"
                               }`}
                             >
-                              {slot.time}
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span className="font-semibold">
+                                  {slotTime}
+                                </span>
+                                {slot.endTime && (
+                                  <>
+                                    <span className="text-[10px] opacity-60">
+                                      to
+                                    </span>
+                                    <span className="font-medium">
+                                      {slot.endTime}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </button>
                           );
                         })}
@@ -622,7 +810,7 @@ const Bookings = () => {
                     {/* Service Summary */}
                     <div
                       className={`p-3 rounded-lg border ${
-                        selectedService
+                        selectedServices.length > 0
                           ? "border-red-200 bg-red-50"
                           : "border-gray-200 bg-gray-50"
                       }`}
@@ -630,24 +818,36 @@ const Bookings = () => {
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                            selectedService ? "bg-red-500" : "bg-gray-300"
+                            selectedServices.length > 0
+                              ? "bg-red-500"
+                              : "bg-gray-300"
                           }`}
                         >
                           <Sparkles
                             className={`w-4 h-4 ${
-                              selectedService ? "text-white" : "text-gray-500"
+                              selectedServices.length > 0
+                                ? "text-white"
+                                : "text-gray-500"
                             }`}
                           />
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">
-                            Service
+                            Service(s)
                           </p>
                           <p className="text-xs text-gray-600 truncate">
-                            {selectedService
-                              ? selectedService.name
+                            {selectedServices.length > 0
+                              ? `${selectedServices.length} service${
+                                  selectedServices.length > 1 ? "s" : ""
+                                } selected`
                               : "No service selected"}
                           </p>
+                          {serviceValidation?.totalDuration && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Estimated Duration:{" "}
+                              {serviceValidation.totalDuration}h
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -711,11 +911,18 @@ const Bookings = () => {
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">
-                            Time
+                            Time Block
                           </p>
                           <p className="text-xs text-gray-600">
                             {selectedTimeSlot
-                              ? selectedTimeSlot.time
+                              ? selectedTimeSlot.endTime
+                                ? // Show time range for multi-service bookings
+                                  `${
+                                    selectedTimeSlot.startTime ||
+                                    selectedTimeSlot.time
+                                  } - ${selectedTimeSlot.endTime}`
+                                : // Show single time for legacy bookings
+                                  selectedTimeSlot.time
                               : "No time selected"}
                           </p>
                         </div>
@@ -727,7 +934,8 @@ const Bookings = () => {
                       <div className="mb-2">
                         <Progress
                           value={
-                            !selectedService
+                            selectedServices.length === 0 ||
+                            !serviceValidation?.valid
                               ? 0
                               : !selectedDate
                               ? 33
@@ -739,8 +947,9 @@ const Bookings = () => {
                         />
                       </div>
                       <p className="text-xs text-gray-500 text-center">
-                        {!selectedService
-                          ? "Choose a service to start"
+                        {selectedServices.length === 0 ||
+                        !serviceValidation?.valid
+                          ? "Choose service(s) to start"
                           : !selectedDate
                           ? "Select your preferred date"
                           : !selectedTimeSlot
@@ -758,16 +967,22 @@ const Bookings = () => {
                           disabled={
                             !selectedDate ||
                             !selectedTimeSlot ||
-                            !selectedService
+                            selectedServices.length === 0 ||
+                            !serviceValidation?.valid
                           }
                           className={`w-full ${
-                            selectedDate && selectedTimeSlot && selectedService
+                            selectedDate &&
+                            selectedTimeSlot &&
+                            selectedServices.length > 0 &&
+                            serviceValidation?.valid
                               ? "bg-red-600 hover:bg-red-700"
                               : "bg-gray-300 cursor-not-allowed"
                           }`}
                           size="lg"
                         >
-                          {selectedDate && selectedTimeSlot && selectedService
+                          {selectedDate &&
+                          selectedTimeSlot &&
+                          selectedServices.length > 0
                             ? "Book Appointment"
                             : "Complete Your Selection"}
                         </Button>
@@ -786,13 +1001,29 @@ const Bookings = () => {
                         <div className="space-y-4">
                           {/* Booking Details */}
                           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-start">
                               <span className="text-sm font-medium text-gray-600">
-                                Service
+                                Service(s)
                               </span>
-                              <span className="text-sm font-semibold text-gray-900">
-                                {selectedService?.name}
-                              </span>
+                              <div className="text-right">
+                                {selectedServices.length === 1 ? (
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {selectedServices[0]}
+                                  </span>
+                                ) : (
+                                  <div className="text-sm font-semibold text-gray-900">
+                                    {selectedServices.map((srv, idx) => (
+                                      <div key={idx}>{srv}</div>
+                                    ))}
+                                  </div>
+                                )}
+                                {serviceValidation?.totalDuration && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Estimated Duration:{" "}
+                                    {serviceValidation.totalDuration}h
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-sm font-medium text-gray-600">
@@ -808,10 +1039,15 @@ const Bookings = () => {
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-sm font-medium text-gray-600">
-                                Time
+                                Time Block
                               </span>
                               <span className="text-sm font-semibold text-gray-900">
-                                {selectedTimeSlot?.time}
+                                {selectedTimeSlot?.endTime
+                                  ? `${
+                                      selectedTimeSlot.startTime ||
+                                      selectedTimeSlot.time
+                                    } - ${selectedTimeSlot.endTime}`
+                                  : selectedTimeSlot?.time}
                               </span>
                             </div>
                           </div>

@@ -24,18 +24,61 @@ class BookingService {
   }
 
   // Get available time slots for a date
-  async getAvailableSlots(date) {
+  async getAvailableSlots(date, services = []) {
     try {
       const formattedDate =
         typeof date === "string" ? date : date.toISOString().split("T")[0];
 
+      const params = services.length > 0 
+        ? { services: JSON.stringify(services) }
+        : {};
+
       const response = await axios.get(
-        `/bookings/available-slots/${formattedDate}`
+        `/bookings/available-slots/${formattedDate}`,
+        { params }
       );
 
-      // Transform the response to match frontend expectations
-      const availableSlots = response.data.data?.availableSlots || [];
+      const data = response.data.data || {};
+      
+      // If services were provided, return duration-aware slots
+      if (services.length > 0 && data.availableSlots) {
+        return {
+          slots: data.availableSlots,
+          totalDuration: data.totalDuration,
+          services: data.services
+        };
+      }
+
+      // Legacy format for backward compatibility
+      const availableSlots = data.availableSlots || [];
       return availableSlots.map((slot) => ({ time: slot }));
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  // Validate service combination
+  async validateServices(services) {
+    try {
+      const response = await axios.post('/bookings/validate-services', { services });
+      return response.data.data;
+    } catch (error) {
+      // Return structured error response instead of throwing
+      const errorMessage = error.response?.data?.message || error.message || "Validation failed";
+      return {
+        valid: false,
+        error: errorMessage,
+        services: [],
+        totalDuration: 0
+      };
+    }
+  }
+
+  // Get services catalog
+  async getServicesCatalog() {
+    try {
+      const response = await axios.get('/bookings/services-catalog');
+      return response.data.data;
     } catch (error) {
       throw this.handleError(error);
     }

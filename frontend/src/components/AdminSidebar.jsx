@@ -124,12 +124,12 @@ const AdminSidebar = ({ children }) => {
       path: isStaffRoute ? "/staff/bookings" : "/admin/bookings",
       tooltip: "Manage Bookings",
     },
-    {
-      icon: MessageCircle,
-      label: "Messages",
-      path: isStaffRoute ? "/staff/messages" : "/admin/messages",
-      tooltip: "Messages & Chat",
-    },
+    // {
+    //   icon: MessageCircle,
+    //   label: "Messages",
+    //   path: isStaffRoute ? "/staff/messages" : "/admin/messages",
+    //   tooltip: "Messages & Chat",
+    // },
     // Show Staff Management only for admin routes and admin users
     ...(!isStaffRoute && userIsAdmin
       ? [

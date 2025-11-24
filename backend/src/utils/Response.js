@@ -3,8 +3,13 @@ exports.sendResponseMessage = async (res, status, data, message) => {
 };
 
 exports.sendErrorMessage = async (res, status, error) => {
+  // Handle both string and Error object
+  const errorMessage = typeof error === 'string' 
+    ? error 
+    : (error?.message || "Internal Server Error");
+  
   return res.status(status).json({
-    message: "Internal Server Error",
-    err: error.message,
+    message: errorMessage,
+    err: errorMessage,
   });
 };

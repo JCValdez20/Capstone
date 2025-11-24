@@ -18,6 +18,8 @@ router.patch(
 
 // Public routes - no authentication required
 router.get("/available-slots/:date", BookingController.getAvailableSlots);
+router.get("/services-catalog", BookingController.getServicesCatalog);
+router.post("/validate-services", BookingController.validateServices);
 
 // Note: Admin/Staff booking management routes are in AdminRoutes.js for better organization
 

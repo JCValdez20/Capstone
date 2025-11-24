@@ -989,9 +989,27 @@ const BookingCard = ({
           <span className="text-sm">{booking.timeSlot || booking.time}</span>
         </div>
 
-        <div className="flex items-center gap-2 text-gray-700">
-          <Car className="w-4 h-4 text-gray-500" />
-          <span className="text-sm">{booking.service}</span>
+        <div className="flex items-start gap-2 text-gray-700">
+          <Car className="w-4 h-4 text-gray-500 mt-0.5" />
+          <div className="text-sm">
+            {booking.services && booking.services.length > 0 ? (
+              <div>
+                {booking.services.map((srv, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    <span>• {srv.name}</span>
+                    <span className="text-xs text-gray-500">({srv.duration}h)</span>
+                  </div>
+                ))}
+                {booking.totalDuration && (
+                  <div className="text-xs text-gray-500 mt-1 font-medium">
+                    Total: {booking.totalDuration}h {booking.endTime && `(${booking.timeSlot} - ${booking.endTime})`}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span>{booking.service}</span>
+            )}
+          </div>
         </div>
 
         {booking.vehicle && (

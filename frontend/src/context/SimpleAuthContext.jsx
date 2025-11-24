@@ -101,7 +101,12 @@ export const AuthProvider = ({ children }) => {
     bookingService.cancelBooking(bookingId, cancellationReason);
   const createBooking = (bookingData) =>
     bookingService.createBooking(bookingData);
-  const getAvailableSlots = (date) => bookingService.getAvailableSlots(date);
+  const getAvailableSlots = (date, services = []) => 
+    bookingService.getAvailableSlots(date, services);
+  const validateServices = (services) =>
+    bookingService.validateServices(services);
+  const getServicesCatalog = () =>
+    bookingService.getServicesCatalog();
 
   // Admin methods - delegate to adminService and extract data
   const getAllUsers = async () => {
@@ -168,6 +173,8 @@ export const AuthProvider = ({ children }) => {
     cancelBooking,
     createBooking,
     getAvailableSlots,
+    validateServices,
+    getServicesCatalog,
     // Admin methods
     getAllUsers,
     getAllBookings,

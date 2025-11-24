@@ -297,9 +297,25 @@ const BookingHistory = () => {
                             #{booking._id?.slice(-6) || "N/A"}
                           </div>
                         </td>
-                        <td className="px-6 py-5 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 capitalize">
-                            {booking.service}
+                        <td className="px-6 py-5">
+                          <div className="text-sm font-medium text-gray-900">
+                            {booking.services && booking.services.length > 0 ? (
+                              <div>
+                                {booking.services.map((srv, idx) => (
+                                  <div key={idx} className="flex items-center gap-1">
+                                    <span>• {srv.name}</span>
+                                    <span className="text-xs text-gray-500">({srv.duration}h)</span>
+                                  </div>
+                                ))}
+                                {booking.totalDuration && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Total: {booking.totalDuration}h
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="capitalize">{booking.service}</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
@@ -338,9 +354,14 @@ const BookingHistory = () => {
                             <div className="p-1 bg-green-50 rounded-lg">
                               <Clock className="w-3.5 h-3.5 text-green-600" />
                             </div>
-                            <span className="font-medium">
-                              {booking.timeSlot}
-                            </span>
+                            <div>
+                              <div className="font-medium">{booking.timeSlot}</div>
+                              {booking.endTime && (
+                                <div className="text-xs text-gray-500">
+                                  to {booking.endTime}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-5 whitespace-nowrap">
