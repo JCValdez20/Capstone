@@ -29,9 +29,8 @@ class BookingService {
       const formattedDate =
         typeof date === "string" ? date : date.toISOString().split("T")[0];
 
-      const params = services.length > 0 
-        ? { services: JSON.stringify(services) }
-        : {};
+      const params =
+        services.length > 0 ? { services: JSON.stringify(services) } : {};
 
       const response = await axios.get(
         `/bookings/available-slots/${formattedDate}`,
@@ -39,13 +38,13 @@ class BookingService {
       );
 
       const data = response.data.data || {};
-      
+
       // If services were provided, return duration-aware slots
       if (services.length > 0 && data.availableSlots) {
         return {
           slots: data.availableSlots,
           totalDuration: data.totalDuration,
-          services: data.services
+          services: data.services,
         };
       }
 
@@ -60,16 +59,19 @@ class BookingService {
   // Validate service combination
   async validateServices(services) {
     try {
-      const response = await axios.post('/bookings/validate-services', { services });
+      const response = await axios.post("/bookings/validate-services", {
+        services,
+      });
       return response.data.data;
     } catch (error) {
       // Return structured error response instead of throwing
-      const errorMessage = error.response?.data?.message || error.message || "Validation failed";
+      const errorMessage =
+        error.response?.data?.message || error.message || "Validation failed";
       return {
         valid: false,
         error: errorMessage,
         services: [],
-        totalDuration: 0
+        totalDuration: 0,
       };
     }
   }
@@ -77,7 +79,7 @@ class BookingService {
   // Get services catalog
   async getServicesCatalog() {
     try {
-      const response = await axios.get('/bookings/services-catalog');
+      const response = await axios.get("/bookings/services-catalog");
       return response.data.data;
     } catch (error) {
       throw this.handleError(error);

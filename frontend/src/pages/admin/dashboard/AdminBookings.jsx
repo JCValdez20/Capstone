@@ -997,12 +997,16 @@ const BookingCard = ({
                 {booking.services.map((srv, idx) => (
                   <div key={idx} className="flex items-center gap-1">
                     <span>• {srv.name}</span>
-                    <span className="text-xs text-gray-500">({srv.duration}h)</span>
+                    <span className="text-xs text-gray-500">
+                      ({srv.duration}h)
+                    </span>
                   </div>
                 ))}
                 {booking.totalDuration && (
                   <div className="text-xs text-gray-500 mt-1 font-medium">
-                    Total: {booking.totalDuration}h {booking.endTime && `(${booking.timeSlot} - ${booking.endTime})`}
+                    Total: {booking.totalDuration}h{" "}
+                    {booking.endTime &&
+                      `(${booking.timeSlot} - ${booking.endTime})`}
                   </div>
                 )}
               </div>

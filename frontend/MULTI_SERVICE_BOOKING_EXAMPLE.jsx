@@ -1,16 +1,16 @@
 /**
  * MULTI-SERVICE BOOKING COMPONENT - EXAMPLE IMPLEMENTATION
- * 
+ *
  * This is a reference implementation showing how to update Bookings.jsx
  * to support multi-service selection with duration-based scheduling.
- * 
+ *
  * Key Features:
  * 1. Multi-service checkbox selection
  * 2. Real-time validation of service combinations
  * 3. Dynamic duration calculation
  * 4. Duration-aware time slot generation
  * 5. Display of start time and end time
- * 
+ *
  * USAGE: Integrate these concepts into your existing Bookings.jsx component
  */
 
@@ -103,9 +103,9 @@ const MultiServiceBooking = () => {
   const validateServiceCombination = async () => {
     setLoadingValidation(true);
     try {
-      const response = await fetch('/api/bookings/validate-services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/bookings/validate-services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ services: selectedServices }),
       });
 
@@ -133,18 +133,21 @@ const MultiServiceBooking = () => {
     try {
       const dateString = formatDateForAPI(selectedDate);
       const servicesParam = JSON.stringify(selectedServices);
-      
+
       const response = await fetch(
-        `/api/bookings/available-slots/${dateString}?services=${encodeURIComponent(servicesParam)}`
+        `/api/bookings/available-slots/${dateString}?services=${encodeURIComponent(
+          servicesParam
+        )}`
       );
-      
+
       const result = await response.json();
       setAvailableSlots(result.data.availableSlots || []);
       setSelectedTimeSlot(null);
 
       if (result.data.availableSlots?.length === 0) {
         toast.info("No available slots", {
-          description: "No time slots available for this date with selected services.",
+          description:
+            "No time slots available for this date with selected services.",
         });
       }
     } catch (error) {
@@ -193,7 +196,7 @@ const MultiServiceBooking = () => {
       };
 
       await createBooking(bookingData);
-      
+
       toast.success("Booking confirmed!", {
         description: `Your booking for ${serviceValidation.totalDuration} hours has been created.`,
       });
@@ -224,7 +227,7 @@ const MultiServiceBooking = () => {
       {/* Step 1: Service Selection */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">Step 1: Select Services</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {services.map((service) => (
             <div
@@ -251,7 +254,8 @@ const MultiServiceBooking = () => {
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="outline" className="text-xs">
                       <Clock className="w-3 h-3 mr-1" />
-                      {service.duration} {service.duration === 1 ? "hour" : "hours"}
+                      {service.duration}{" "}
+                      {service.duration === 1 ? "hour" : "hours"}
                     </Badge>
                     <Badge variant="secondary" className="text-xs">
                       {service.category}
@@ -268,15 +272,15 @@ const MultiServiceBooking = () => {
           <div className="mt-6 space-y-3">
             {loadingValidation ? (
               <Alert>
-                <AlertDescription>Validating service combination...</AlertDescription>
+                <AlertDescription>
+                  Validating service combination...
+                </AlertDescription>
               </Alert>
             ) : serviceValidation ? (
               serviceValidation.valid ? (
                 <Alert className="bg-green-50 border-green-200">
                   <AlertDescription className="flex items-center justify-between">
-                    <span className="text-green-800">
-                      ✓ Valid combination
-                    </span>
+                    <span className="text-green-800">✓ Valid combination</span>
                     <span className="font-semibold text-green-900">
                       Total Duration: {serviceValidation.totalDuration} hours
                     </span>
@@ -312,7 +316,7 @@ const MultiServiceBooking = () => {
           <h2 className="text-xl font-semibold mb-4">
             Step 3: Select Time Slot
           </h2>
-          
+
           {loadingSlots ? (
             <p>Loading available slots...</p>
           ) : availableSlots.length > 0 ? (
@@ -331,9 +335,7 @@ const MultiServiceBooking = () => {
                   <span className="font-semibold text-sm">
                     {slot.startTime}
                   </span>
-                  <span className="text-xs opacity-75">
-                    to {slot.endTime}
-                  </span>
+                  <span className="text-xs opacity-75">to {slot.endTime}</span>
                   <span className="text-xs opacity-60 mt-1">
                     ({slot.duration} hrs)
                   </span>
@@ -354,7 +356,7 @@ const MultiServiceBooking = () => {
       {selectedTimeSlot && (
         <Card className="p-6 bg-blue-50 border-blue-200">
           <h3 className="text-lg font-semibold mb-4">Booking Summary</h3>
-          
+
           <div className="space-y-2 text-sm mb-4">
             <p>
               <span className="font-medium">Services:</span>{" "}
@@ -374,11 +376,7 @@ const MultiServiceBooking = () => {
             </p>
           </div>
 
-          <Button
-            onClick={handleBooking}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={handleBooking} className="w-full" size="lg">
             Confirm Booking
           </Button>
         </Card>

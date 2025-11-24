@@ -10,31 +10,33 @@ const bookingSchema = new mongoose.Schema({
 
   // Service Details - Can be single or multiple services
   services: {
-    type: [{
-      name: {
-        type: String,
-        enum: [
-          "UV Graphene Ceramic Coating",
-          "Powder Coating",
-          "Moto/Oto VIP",
-          "Full Moto/Oto SPA",
-          "Modernized Interior Detailing",
-          "Modernized Engine Detailing",
-        ],
-        required: true,
+    type: [
+      {
+        name: {
+          type: String,
+          enum: [
+            "UV Graphene Ceramic Coating",
+            "Powder Coating",
+            "Moto/Oto VIP",
+            "Full Moto/Oto SPA",
+            "Modernized Interior Detailing",
+            "Modernized Engine Detailing",
+          ],
+          required: true,
+        },
+        duration: {
+          type: Number, // Duration in hours
+          required: true,
+        },
       },
-      duration: {
-        type: Number, // Duration in hours
-        required: true,
-      },
-    }],
+    ],
     required: true,
     validate: {
-      validator: function(services) {
+      validator: function (services) {
         return services && services.length > 0;
       },
-      message: 'At least one service must be selected'
-    }
+      message: "At least one service must be selected",
+    },
   },
 
   // Legacy service field for backward compatibility

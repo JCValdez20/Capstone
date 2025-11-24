@@ -302,9 +302,14 @@ const BookingHistory = () => {
                             {booking.services && booking.services.length > 0 ? (
                               <div>
                                 {booking.services.map((srv, idx) => (
-                                  <div key={idx} className="flex items-center gap-1">
+                                  <div
+                                    key={idx}
+                                    className="flex items-center gap-1"
+                                  >
                                     <span>• {srv.name}</span>
-                                    <span className="text-xs text-gray-500">({srv.duration}h)</span>
+                                    <span className="text-xs text-gray-500">
+                                      ({srv.duration}h)
+                                    </span>
                                   </div>
                                 ))}
                                 {booking.totalDuration && (
@@ -314,7 +319,9 @@ const BookingHistory = () => {
                                 )}
                               </div>
                             ) : (
-                              <span className="capitalize">{booking.service}</span>
+                              <span className="capitalize">
+                                {booking.service}
+                              </span>
                             )}
                           </div>
                         </td>
@@ -355,7 +362,9 @@ const BookingHistory = () => {
                               <Clock className="w-3.5 h-3.5 text-green-600" />
                             </div>
                             <div>
-                              <div className="font-medium">{booking.timeSlot}</div>
+                              <div className="font-medium">
+                                {booking.timeSlot}
+                              </div>
                               {booking.endTime && (
                                 <div className="text-xs text-gray-500">
                                   to {booking.endTime}

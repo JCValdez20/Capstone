@@ -11,11 +11,13 @@ This system transforms the booking process from single-service hourly slots to *
 ### ✅ Backend (COMPLETE)
 
 #### 1. **Service Configuration Module**
+
 **File:** `backend/src/config/services.js` (269 lines)
 
 **Purpose:** Centralized business logic for all service-related operations
 
 **Key Components:**
+
 ```javascript
 // Service definitions with durations
 SERVICE_CATALOG = {
@@ -24,21 +26,22 @@ SERVICE_CATALOG = {
   "Moto/Oto VIP": { duration: 3, category: "package" },
   "Full Moto/Oto SPA": { duration: 4, category: "package" },
   "Modernized Interior Detailing": { duration: 1.5, category: "detailing" },
-  "Modernized Engine Detailing": { duration: 1.5, category: "detailing" }
-}
+  "Modernized Engine Detailing": { duration: 1.5, category: "detailing" },
+};
 
 // Incompatible combinations (10 rules)
 INCOMPATIBLE_COMBINATIONS = [
   ["UV Graphene Ceramic Coating", "Powder Coating"],
   ["Powder Coating", "Moto/Oto VIP"],
   // ... etc
-]
+];
 
 // Shop hours
-SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
+SHOP_HOURS = { open: 9, close: 21, totalHours: 12 };
 ```
 
 **Exported Functions:**
+
 - `validateServiceCombination(serviceNames)` → `{valid, error}`
 - `calculateTotalDuration(serviceNames)` → number (hours)
 - `calculateEndTime(startTime, duration)` → `{valid, endTime, error}`
@@ -49,9 +52,11 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 ---
 
 #### 2. **Database Schema Update**
+
 **File:** `backend/src/models/Booking.js`
 
 **New Fields:**
+
 ```javascript
 {
   services: [{
@@ -60,13 +65,14 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
   }],
   totalDuration: Number,  // Sum of all durations
   endTime: String,        // Calculated end time (e.g., "1:00 PM")
-  
+
   // Legacy field (kept for backward compatibility)
   service: String         // Original single service field
 }
 ```
 
 **Validation:**
+
 - At least one service required
 - Services array structure validated
 - All fields are optional for backward compatibility
@@ -74,15 +80,19 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 ---
 
 #### 3. **Controller Updates**
+
 **File:** `backend/src/controllers/BookingController.js`
 
 **Updated Endpoints:**
 
 ##### `GET /api/bookings/available-slots/:date`
+
 **Query Parameter:** `?services=["Service 1", "Service 2"]`
 
 **Behavior:**
+
 - **With services parameter:**
+
   - Validates service combination
   - Calculates total duration
   - Generates dynamic slots based on duration
@@ -94,6 +104,7 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
   - Uses old booking conflict detection
 
 **Response:**
+
 ```json
 {
   "date": "2024-01-15",
@@ -108,10 +119,12 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 ```
 
 ##### `POST /api/bookings/create`
+
 **Request Body:**
+
 ```json
 {
-  "services": ["Service 1", "Service 2"],  // NEW: Array of service names
+  "services": ["Service 1", "Service 2"], // NEW: Array of service names
   "date": "2024-01-15",
   "timeSlot": "9:00 AM",
   "vehicle": "motorcycle",
@@ -120,6 +133,7 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 ```
 
 **Validation Process:**
+
 1. Check if `services` array provided (multi-service) or `service` string (legacy)
 2. Validate service combination using `validateServiceCombination()`
 3. Calculate total duration
@@ -128,16 +142,20 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 6. Create booking with services array, duration, and end time
 
 **Backward Compatibility:**
+
 - Still accepts single `service` field for old clients
 - Converts single service to array internally
 
 ##### `POST /api/bookings/validate-services` (NEW)
+
 **Request:**
+
 ```json
 { "services": ["Service 1", "Service 2"] }
 ```
 
 **Response:**
+
 ```json
 {
   "valid": true,
@@ -151,7 +169,9 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 ```
 
 ##### `GET /api/bookings/services-catalog` (NEW)
+
 **Response:**
+
 ```json
 {
   "services": [
@@ -159,7 +179,7 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
       "name": "UV Graphene Ceramic Coating",
       "duration": 4,
       "category": "coating"
-    },
+    }
     // ... more services
   ],
   "shopHours": {
@@ -173,9 +193,11 @@ SHOP_HOURS = { open: 9, close: 21, totalHours: 12 }
 ---
 
 #### 4. **Routes**
+
 **File:** `backend/src/routes/BookingRoutes.js`
 
 **Added Routes:**
+
 ```javascript
 router.get("/services-catalog", BookingController.getServicesCatalog);
 router.post("/validate-services", BookingController.validateServices);
@@ -186,15 +208,18 @@ router.post("/validate-services", BookingController.validateServices);
 ### 🔧 Testing & Migration Tools (PROVIDED)
 
 #### 1. **API Testing Script**
+
 **File:** `backend/test-multi-service.js`
 
 **Usage:**
+
 ```bash
 # Make sure backend is running first
 node backend/test-multi-service.js
 ```
 
 **Tests:**
+
 - Service combination validation (6 test scenarios)
 - Services catalog endpoint
 - Available slots generation with different service combinations
@@ -205,11 +230,13 @@ node backend/test-multi-service.js
 ---
 
 #### 2. **Migration Script**
+
 **File:** `backend/migrate-bookings.js`
 
 **Purpose:** Update existing bookings to new schema
 
 **Usage:**
+
 ```bash
 # Check migration status
 node backend/migrate-bookings.js verify
@@ -222,6 +249,7 @@ node backend/migrate-bookings.js help
 ```
 
 **What it does:**
+
 - Finds bookings without `services` array
 - Creates `services` array from legacy `service` field
 - Calculates `totalDuration`
@@ -229,6 +257,7 @@ node backend/migrate-bookings.js help
 - Defaults to 1 hour for unknown services
 
 **Safety:**
+
 - Only updates bookings without `services` array
 - Safe to run multiple times
 - Provides detailed progress output
@@ -238,9 +267,11 @@ node backend/migrate-bookings.js help
 ### 📚 Documentation (PROVIDED)
 
 #### 1. **Implementation Guide**
+
 **File:** `MULTI_SERVICE_BOOKING_IMPLEMENTATION.md`
 
 **Contents:**
+
 - Complete backend implementation summary
 - Frontend implementation guidelines
 - Testing checklist
@@ -251,9 +282,11 @@ node backend/migrate-bookings.js help
 ---
 
 #### 2. **Frontend Example**
+
 **File:** `frontend/MULTI_SERVICE_BOOKING_EXAMPLE.jsx`
 
 **Contents:**
+
 - Complete React component example
 - Multi-service checkbox selection
 - Real-time validation
@@ -272,6 +305,7 @@ node backend/migrate-bookings.js help
 **Current State:** Single-service dropdown selector
 
 **Required Changes:**
+
 - Replace dropdown with checkbox grid for multiple services
 - Add state: `const [selectedServices, setSelectedServices] = useState([])`
 - Call validation API when services change
@@ -298,24 +332,26 @@ const getAvailableSlots = async (date) => {
 
 // AFTER
 const getAvailableSlots = async (date, services = []) => {
-  const params = services.length > 0 
-    ? { services: JSON.stringify(services) }
-    : {};
-  
-  const response = await api.get(`/bookings/available-slots/${date}`, { params });
+  const params =
+    services.length > 0 ? { services: JSON.stringify(services) } : {};
+
+  const response = await api.get(`/bookings/available-slots/${date}`, {
+    params,
+  });
   return response.data.data.availableSlots;
 };
 ```
 
 **New Functions to Add:**
+
 ```javascript
 const validateServices = async (services) => {
-  const response = await api.post('/bookings/validate-services', { services });
+  const response = await api.post("/bookings/validate-services", { services });
   return response.data.data;
 };
 
 const getServicesCatalog = async () => {
-  const response = await api.get('/bookings/services-catalog');
+  const response = await api.get("/bookings/services-catalog");
   return response.data.data;
 };
 ```
@@ -327,6 +363,7 @@ const getServicesCatalog = async () => {
 **Current State:** Displays single service
 
 **Required Changes:**
+
 - Check if booking has `services` array
 - If yes, display multiple services
 - Show total duration
@@ -334,21 +371,26 @@ const getServicesCatalog = async () => {
 - Handle legacy bookings (only `service` field)
 
 **Example:**
+
 ```jsx
-{booking.services && booking.services.length > 0 ? (
-  <div>
-    <div className="font-semibold">Services:</div>
-    {booking.services.map((service, idx) => (
-      <div key={idx}>• {service.name} ({service.duration}h)</div>
-    ))}
-    <div className="mt-2">
-      Total Duration: {booking.totalDuration} hours
+{
+  booking.services && booking.services.length > 0 ? (
+    <div>
+      <div className="font-semibold">Services:</div>
+      {booking.services.map((service, idx) => (
+        <div key={idx}>
+          • {service.name} ({service.duration}h)
+        </div>
+      ))}
+      <div className="mt-2">Total Duration: {booking.totalDuration} hours</div>
+      <div>
+        Time: {booking.timeSlot} - {booking.endTime}
+      </div>
     </div>
-    <div>Time: {booking.timeSlot} - {booking.endTime}</div>
-  </div>
-) : (
-  <div>Service: {booking.service}</div>
-)}
+  ) : (
+    <div>Service: {booking.service}</div>
+  );
+}
 ```
 
 ---
@@ -356,10 +398,12 @@ const getServicesCatalog = async () => {
 #### 4. **Admin/Staff Components** (MEDIUM PRIORITY)
 
 **Files:**
+
 - `frontend/src/pages/admin/dashboard/AdminBookings.jsx`
 - `frontend/src/pages/staff/dashboard/StaffBookings.jsx` (if exists)
 
 **Required Changes:**
+
 - Display services array in booking cards
 - Show duration and end time
 - Add service filter dropdown (filter by any service in booking)
@@ -372,6 +416,7 @@ const getServicesCatalog = async () => {
 ### Service Combination Rules
 
 #### ✅ Valid Combinations:
+
 - UV Graphene + Interior + Engine
 - Powder + Interior + Engine
 - VIP alone or with nothing
@@ -379,6 +424,7 @@ const getServicesCatalog = async () => {
 - Interior + Engine (any combination)
 
 #### ❌ Invalid Combinations:
+
 - UV Graphene + Powder (both are coating services)
 - Powder + VIP (coating conflicts with VIP package)
 - Powder + SPA (coating conflicts with SPA package)
@@ -389,6 +435,7 @@ const getServicesCatalog = async () => {
 - SPA + Engine (SPA includes engine)
 
 **Rationale:**
+
 - Coating services are mutually exclusive
 - VIP and SPA packages are comprehensive and include detailing
 - Prevents redundant service bookings
@@ -398,10 +445,12 @@ const getServicesCatalog = async () => {
 ### Time Overlap Detection
 
 **OLD SYSTEM (Simple):**
+
 - Only prevented same start time
 - Hourly slots only
 
 **NEW SYSTEM (Duration-Aware):**
+
 - Prevents ANY overlap across time ranges
 - Considers booking duration and end time
 
@@ -437,10 +486,12 @@ Result:  ALLOWED (fits in gap)
 **Hours:** 9:00 AM to 9:00 PM (12 hours total)
 
 **Rules:**
+
 - Bookings must START at or after 9:00 AM
 - Bookings must END at or before 9:00 PM
 
 **Examples:**
+
 ```
 ✅ Start: 5:00 PM, Duration: 4 hours, End: 9:00 PM (ALLOWED)
 ❌ Start: 6:00 PM, Duration: 4 hours, End: 10:00 PM (BLOCKED)
@@ -454,6 +505,7 @@ Result:  ALLOWED (fits in gap)
 ### Backend API Testing
 
 **1. Test Service Validation:**
+
 ```bash
 # Run automated tests
 node backend/test-multi-service.js
@@ -479,24 +531,28 @@ curl "http://localhost:5000/api/bookings/available-slots/2024-01-15?services=%5B
 ### Frontend Testing Checklist
 
 **Service Selection:**
+
 - [ ] Can select multiple services via checkboxes
 - [ ] Validation runs when services change
 - [ ] Error message shown for invalid combinations
 - [ ] Total duration displayed correctly
 
 **Slot Generation:**
+
 - [ ] Available slots update based on selected services
 - [ ] Slots show start and end time
 - [ ] No overlapping slots shown
 - [ ] Past time slots filtered out for today
 
 **Booking Creation:**
+
 - [ ] Can create booking with multiple services
 - [ ] Booking appears in history with all services
 - [ ] Admin sees multiple services in booking list
 - [ ] Duration and end time displayed correctly
 
 **Edge Cases:**
+
 - [ ] Services totaling 12 hours work correctly
 - [ ] Bookings ending at 9 PM allowed
 - [ ] Bookings exceeding 9 PM blocked
@@ -507,26 +563,31 @@ curl "http://localhost:5000/api/bookings/available-slots/2024-01-15?services=%5B
 ## 📝 Migration Steps
 
 ### Step 1: Backup Database
+
 ```bash
 mongodump --db washup --out ./backup-before-migration
 ```
 
 ### Step 2: Verify Current State
+
 ```bash
 node backend/migrate-bookings.js verify
 ```
 
 ### Step 3: Run Migration
+
 ```bash
 node backend/migrate-bookings.js
 ```
 
 ### Step 4: Verify Migration
+
 ```bash
 node backend/migrate-bookings.js verify
 ```
 
 ### Step 5: Test Migrated Data
+
 - Check admin panel to ensure old bookings display correctly
 - Verify duration and end times are accurate
 - Test creating new bookings
@@ -536,6 +597,7 @@ node backend/migrate-bookings.js verify
 ## 🚀 Deployment Checklist
 
 ### Backend:
+
 - [ ] `services.js` deployed
 - [ ] `Booking.js` schema updated
 - [ ] `BookingController.js` updated
@@ -544,6 +606,7 @@ node backend/migrate-bookings.js verify
 - [ ] API tests pass
 
 ### Frontend:
+
 - [ ] `Bookings.jsx` updated for multi-service
 - [ ] `useAuth.js` hook updated
 - [ ] `BookingHistory.jsx` displays services array
@@ -552,6 +615,7 @@ node backend/migrate-bookings.js verify
 - [ ] Cross-browser testing completed
 
 ### Verification:
+
 - [ ] Can create multi-service bookings
 - [ ] Service validation works
 - [ ] Overlap detection prevents conflicts
@@ -563,21 +627,26 @@ node backend/migrate-bookings.js verify
 ## 💡 Future Enhancements
 
 ### Phase 2 Features:
+
 1. **Dynamic Pricing**
+
    - Add price field to SERVICE_CATALOG
    - Calculate total price
    - Display before confirmation
 
 2. **Service Add-ons**
+
    - Allow adding services to existing bookings
    - Recalculate duration and check availability
 
 3. **Resource Management**
+
    - Track staff assignments
    - Track equipment availability
    - Prevent resource overbooking
 
 4. **Booking Modifications**
+
    - Allow changing services
    - Allow rescheduling with duration awareness
 
@@ -609,6 +678,7 @@ A: Time overlap detected - try different time slot
 ## ✅ Summary
 
 ### What Works Now:
+
 ✅ Backend fully supports multi-service bookings  
 ✅ Duration-aware scheduling implemented  
 ✅ Service combination validation working  
@@ -616,12 +686,13 @@ A: Time overlap detected - try different time slot
 ✅ Shop hours enforcement in place  
 ✅ API endpoints tested and documented  
 ✅ Migration tools provided  
-✅ Frontend example provided  
+✅ Frontend example provided
 
 ### What's Next:
+
 🔄 Update frontend components  
 🔄 Test end-to-end flow  
-🔄 Deploy to production  
+🔄 Deploy to production
 
 **Total Implementation Time:** Backend complete (~3-4 hours work)  
 **Remaining Work:** Frontend integration (~4-6 hours estimated)

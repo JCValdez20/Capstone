@@ -69,6 +69,40 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Register
+  const register = async (userData) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/user/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.message || "Registration failed",
+        };
+      }
+
+      return {
+        success: true,
+        data: data.data || data,
+        message: data.message,
+      };
+    } catch (error) {
+      console.error("Registration error:", error);
+      return {
+        success: false,
+        message: "An unexpected error occurred. Please try again.",
+      };
+    }
+  };
+
   // Update user data
   const updateUser = (userData) => {
     setUser(userData);
@@ -101,12 +135,11 @@ export const AuthProvider = ({ children }) => {
     bookingService.cancelBooking(bookingId, cancellationReason);
   const createBooking = (bookingData) =>
     bookingService.createBooking(bookingData);
-  const getAvailableSlots = (date, services = []) => 
+  const getAvailableSlots = (date, services = []) =>
     bookingService.getAvailableSlots(date, services);
   const validateServices = (services) =>
     bookingService.validateServices(services);
-  const getServicesCatalog = () =>
-    bookingService.getServicesCatalog();
+  const getServicesCatalog = () => bookingService.getServicesCatalog();
 
   // Admin methods - delegate to adminService and extract data
   const getAllUsers = async () => {
@@ -158,6 +191,7 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     login,
     logout,
+    register,
     updateUser,
     hasRole,
     isAdmin,

@@ -10,7 +10,7 @@ const {
   generateAvailableSlots,
   checkTimeOverlap,
   SERVICE_CATALOG,
-  timeStringToHours
+  timeStringToHours,
 } = require("../config/services");
 
 // Helper function to update timestamps
@@ -35,7 +35,7 @@ exports.getAvailableSlots = async (req, res) => {
         serviceNames = JSON.parse(services);
       } catch (e) {
         // Fallback to comma-separated string
-        serviceNames = services.split(',').map(s => s.trim());
+        serviceNames = services.split(",").map((s) => s.trim());
       }
     }
 
@@ -43,7 +43,7 @@ exports.getAvailableSlots = async (req, res) => {
     const existingBookings = await Booking.find({
       date: selectedDate,
       status: { $in: ["pending", "confirmed", "completed"] },
-    }).select('timeSlot endTime totalDuration services service');
+    }).select("timeSlot endTime totalDuration services service");
 
     // If services are provided, generate duration-aware slots
     if (serviceNames.length > 0) {
@@ -91,7 +91,7 @@ exports.getAvailableSlots = async (req, res) => {
       "9:00 PM",
     ];
 
-    const bookedSlots = existingBookings.map(b => b.timeSlot);
+    const bookedSlots = existingBookings.map((b) => b.timeSlot);
     let availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
 
     // Filter out past time slots for today
@@ -208,7 +208,11 @@ exports.createBooking = async (req, res) => {
     let serviceNames = [];
     let isMultiService = false;
 
-    if (requestedServices && Array.isArray(requestedServices) && requestedServices.length > 0) {
+    if (
+      requestedServices &&
+      Array.isArray(requestedServices) &&
+      requestedServices.length > 0
+    ) {
       // Multi-service booking
       serviceNames = requestedServices;
       isMultiService = true;
@@ -279,7 +283,7 @@ exports.createBooking = async (req, res) => {
     // Calculate duration and end time for this booking
     const totalDuration = calculateTotalDuration(serviceNames);
     const endTimeResult = calculateEndTime(selectedTimeSlot, totalDuration);
-    
+
     if (!endTimeResult.valid) {
       return send.sendErrorMessage(res, 400, new Error(endTimeResult.error));
     }
@@ -290,9 +294,13 @@ exports.createBooking = async (req, res) => {
     const existingBookings = await Booking.find({
       date: selectedDate,
       status: { $in: ["pending", "confirmed", "completed"] },
-    }).select('timeSlot endTime totalDuration services service');
+    }).select("timeSlot endTime totalDuration services service");
 
-    const hasOverlap = checkTimeOverlap(selectedTimeSlot, endTime, existingBookings);
+    const hasOverlap = checkTimeOverlap(
+      selectedTimeSlot,
+      endTime,
+      existingBookings
+    );
     if (hasOverlap) {
       return send.sendErrorMessage(
         res,
@@ -302,16 +310,16 @@ exports.createBooking = async (req, res) => {
     }
 
     // Build services array with duration info
-    const servicesArray = serviceNames.map(serviceName => ({
+    const servicesArray = serviceNames.map((serviceName) => ({
       name: serviceName,
-      duration: SERVICE_CATALOG[serviceName].duration
+      duration: SERVICE_CATALOG[serviceName].duration,
     }));
 
     // Create booking data with timestamp
     const bookingData = updateTimestamp({
       user: userId,
       // Legacy field: only populate for single-service bookings to avoid enum validation errors
-      service: isMultiService ? undefined : (service || serviceNames[0]),
+      service: isMultiService ? undefined : service || serviceNames[0],
       services: servicesArray,
       totalDuration,
       endTime,
@@ -447,7 +455,7 @@ exports.validateServices = async (req, res) => {
 
     // Validate service combination
     const validation = validateServiceCombination(services);
-    
+
     if (!validation.valid) {
       return send.sendResponseMessage(
         res,
@@ -471,11 +479,11 @@ exports.validateServices = async (req, res) => {
         valid: true,
         services: services,
         totalDuration: totalDuration,
-        details: services.map(serviceName => ({
+        details: services.map((serviceName) => ({
           name: serviceName,
           duration: SERVICE_CATALOG[serviceName].duration,
-          category: SERVICE_CATALOG[serviceName].category
-        }))
+          category: SERVICE_CATALOG[serviceName].category,
+        })),
       },
       "Service combination is valid"
     );
@@ -489,7 +497,7 @@ exports.getServicesCatalog = async (req, res) => {
   try {
     const catalog = Object.entries(SERVICE_CATALOG).map(([name, details]) => ({
       name,
-      ...details
+      ...details,
     }));
 
     return send.sendResponseMessage(
@@ -500,8 +508,8 @@ exports.getServicesCatalog = async (req, res) => {
         shopHours: {
           open: "9:00 AM",
           close: "9:00 PM",
-          totalHours: 12
-        }
+          totalHours: 12,
+        },
       },
       "Services catalog retrieved successfully"
     );
