@@ -80,6 +80,80 @@ class AdminService {
       };
     }
   }
+
+  /**
+   * Get all bookings (Admin/Staff only)
+   */
+  async getAllBookings(params = {}) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append("page", params.page);
+      if (params.limit) queryParams.append("limit", params.limit);
+      if (params.status) queryParams.append("status", params.status);
+      if (params.startDate) queryParams.append("startDate", params.startDate);
+      if (params.endDate) queryParams.append("endDate", params.endDate);
+
+      const url = `/admin/bookings${
+        queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`;
+      const response = await axios.get(url);
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to fetch bookings",
+        error: error.response?.data,
+      };
+    }
+  }
+
+  /**
+   * Get booking statistics (Admin/Staff only)
+   */
+  async getBookingStats() {
+    try {
+      const response = await axios.get("/admin/bookings/stats");
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error("Error fetching booking stats:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to fetch booking stats",
+        error: error.response?.data,
+      };
+    }
+  }
+
+  /**
+   * Update booking status (Admin/Staff only)
+   */
+  async updateBookingStatus(bookingId, status) {
+    try {
+      const response = await axios.put(`/admin/bookings/${bookingId}/status`, {
+        status,
+      });
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Failed to update booking status",
+        error: error.response?.data,
+      };
+    }
+  }
 }
 
 const adminService = new AdminService();

@@ -1,7 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatStore } from "@/store/useChatStore";
-import { Search, Send, Users, Image, X } from "lucide-react";
+import socketService from "@/services/socketService";
+import {
+  Search,
+  Send,
+  Users,
+  Image,
+  X,
+  Calendar,
+  Clock,
+  Package,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,14 +28,26 @@ const formatMessageTime = (timestamp) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
 const AdminStaffMessages = () => {
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [customerBookings, setCustomerBookings] = useState([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [expandedBookings, setExpandedBookings] = useState(new Set());
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const { user, isAdminOrStaff, onlineUsers } = useAuth();
+  const { user, isAdminOrStaff, getAllBookings } = useAuth();
 
   const {
     messages,
@@ -46,12 +70,73 @@ const AdminStaffMessages = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch users on component mount
+  // Initialize socket and fetch users on component mount
   useEffect(() => {
     if (isAdminOrStaff()) {
+      // Connect socket with token
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        socketService.connect();
+      }
       getUsers();
     }
+
+    return () => {
+      // Don't disconnect socket on unmount - keep it for real-time updates
+    };
   }, [getUsers, isAdminOrStaff]);
+
+  // Fetch customer bookings when selected user changes
+  useEffect(() => {
+    const fetchCustomerBookings = async () => {
+      if (!selectedUser) {
+        setCustomerBookings([]);
+        return;
+      }
+
+      setIsLoadingBookings(true);
+      try {
+        // Calculate date range for current month
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        // Format dates as YYYY-MM-DD
+        const startDate = startOfMonth.toISOString().split('T')[0];
+        const endDate = endOfMonth.toISOString().split('T')[0];
+
+        const response = await getAllBookings({
+          status: 'pending',
+          startDate,
+          endDate
+        });
+
+        // Filter bookings for the selected customer with pending status and limit to 3
+        // Note: booking.user is populated with user object from backend
+        const userBookings =
+          response.data?.bookings?.filter((booking) => {
+            const bookingUserId = booking.user?._id || booking.user;
+            const selectedUserId = selectedUser._id;
+            return bookingUserId === selectedUserId && booking.status === "pending";
+          }).slice(0, 3) || [];
+
+        console.log(
+          "📅 Fetched pending bookings for customer:",
+          userBookings.length
+        );
+        console.log("📅 Selected user ID:", selectedUser._id);
+        console.log("📅 Date range:", startDate, "to", endDate);
+        setCustomerBookings(userBookings);
+      } catch (error) {
+        console.error("❌ Error fetching customer bookings:", error);
+        setCustomerBookings([]);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+
+    fetchCustomerBookings();
+  }, [selectedUser, getAllBookings]);
 
   // Handle user selection
   const handleUserSelect = async (selectedStaff) => {
@@ -155,7 +240,7 @@ const AdminStaffMessages = () => {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5 text-blue-600" />
-            <h2 className="font-semibold text-gray-900">Staff Messages</h2>
+            <h2 className="font-semibold text-gray-900">Messages</h2>
           </div>
 
           {/* Search */}
@@ -163,7 +248,7 @@ const AdminStaffMessages = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search staff members..."
+              placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -187,12 +272,11 @@ const AdminStaffMessages = () => {
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
-              No staff members found
+              No users found
             </div>
           ) : (
             <div className="p-2 space-y-1">
               {filteredUsers.map((staff) => {
-                const isOnline = onlineUsers.includes(staff._id);
                 const isSelected = selectedUser?._id === staff._id;
 
                 return (
@@ -206,19 +290,14 @@ const AdminStaffMessages = () => {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={staff.profilePic} />
-                          <AvatarFallback>
-                            {`${staff.first_name?.[0] || ""}${
-                              staff.last_name?.[0] || ""
-                            }`.toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        {isOnline && (
-                          <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-green-500 border-2 border-white rounded-full"></div>
-                        )}
-                      </div>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={staff.profilePic} />
+                        <AvatarFallback>
+                          {`${staff.first_name?.[0] || ""}${
+                            staff.last_name?.[0] || ""
+                          }`.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
 
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 truncate">
@@ -240,13 +319,6 @@ const AdminStaffMessages = () => {
                               ? staff.roles.join(", ")
                               : staff.roles}
                           </Badge>
-                          <span
-                            className={`text-xs ${
-                              isOnline ? "text-green-600" : "text-gray-400"
-                            }`}
-                          >
-                            {isOnline ? "Online" : "Offline"}
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -264,40 +336,161 @@ const AdminStaffMessages = () => {
           <>
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 p-4">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedUser.profilePic} />
-                  <AvatarFallback>
-                    {`${selectedUser.first_name?.[0] || ""}${
-                      selectedUser.last_name?.[0] || ""
-                    }`.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold text-gray-900">
-                    {selectedUser.first_name} {selectedUser.last_name}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={(() => {
-                        const roles = Array.isArray(selectedUser.roles)
-                          ? selectedUser.roles
-                          : [selectedUser.roles];
-                        return roles.includes("admin")
-                          ? "default"
-                          : "secondary";
-                      })()}
-                    >
-                      {Array.isArray(selectedUser.roles)
-                        ? selectedUser.roles.join(", ")
-                        : selectedUser.roles}
-                    </Badge>
-                    <span className="text-sm text-gray-500">
-                      {selectedUser.email}
-                    </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedUser.profilePic} />
+                    <AvatarFallback>
+                      {`${selectedUser.first_name?.[0] || ""}${
+                        selectedUser.last_name?.[0] || ""
+                      }`.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      {selectedUser.first_name} {selectedUser.last_name}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={(() => {
+                          const roles = Array.isArray(selectedUser.roles)
+                            ? selectedUser.roles
+                            : [selectedUser.roles];
+                          return roles.includes("admin")
+                            ? "default"
+                            : "secondary";
+                        })()}
+                      >
+                        {Array.isArray(selectedUser.roles)
+                          ? selectedUser.roles.join(", ")
+                          : selectedUser.roles}
+                      </Badge>
+                      <span className="text-sm text-gray-500">
+                        {selectedUser.email}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {/* Pending Bookings Badge */}
+                {customerBookings.length > 0 && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {customerBookings.length} Pending Booking
+                    {customerBookings.length !== 1 ? "s" : ""}
+                  </Badge>
+                )}
               </div>
+
+              {/* Pending Bookings List */}
+              {customerBookings.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-medium text-gray-500 uppercase">
+                    Pending Bookings:
+                  </p>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {customerBookings.map((booking) => {
+                      const isExpanded = expandedBookings.has(booking._id);
+
+                      return (
+                        <div
+                          key={booking._id}
+                          className="bg-amber-50 border border-amber-200 rounded text-xs"
+                        >
+                          <div className="flex items-center justify-between p-2">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3 text-amber-600" />
+                              <span className="font-medium">
+                                {formatDate(booking.date)}
+                              </span>
+                              <Clock className="h-3 w-3 text-amber-600 ml-1" />
+                              <span>{booking.timeSlot}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                <Package className="h-3 w-3 text-amber-600" />
+                                <span className="text-gray-600">
+                                  {booking.services?.length || 0} service
+                                  {booking.services?.length !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setExpandedBookings((prev) => {
+                                    const newSet = new Set(prev);
+                                    if (newSet.has(booking._id)) {
+                                      newSet.delete(booking._id);
+                                    } else {
+                                      newSet.add(booking._id);
+                                    }
+                                    return newSet;
+                                  });
+                                }}
+                                className="text-amber-600 hover:text-amber-700 p-1"
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="px-2 pb-2 pt-1 border-t border-amber-200 space-y-2">
+                              <div className="flex items-center gap-2 text-gray-700">
+                                <Clock className="h-3 w-3 text-amber-600" />
+                                <span className="font-medium">Time:</span>
+                                <span>
+                                  {booking.timeSlot} - {booking.endTime}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <Package className="h-3 w-3 text-amber-600" />
+                                  <span className="font-medium">Services:</span>
+                                </div>
+                                <ul className="ml-5 space-y-1">
+                                  {booking.services?.map((service, idx) => (
+                                    <li key={idx} className="text-gray-600">
+                                      • {service.name}{" "}
+                                      <span className="text-gray-500">
+                                        ({service.duration}h)
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {booking.notes && (
+                                <div className="space-y-1">
+                                  <span className="font-medium text-gray-700">
+                                    Notes:
+                                  </span>
+                                  <p className="text-gray-600 ml-0">
+                                    {booking.notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Loading State */}
+              {isLoadingBookings && (
+                <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  Loading bookings...
+                </div>
+              )}
             </div>
 
             {/* Messages */}
@@ -437,7 +630,7 @@ const AdminStaffMessages = () => {
             <div className="text-center">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select a staff member
+                Select a user
               </h3>
               <p className="text-gray-500">
                 Choose someone from the sidebar to start messaging

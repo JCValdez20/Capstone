@@ -74,7 +74,19 @@ const AdminBookings = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllBookings();
+      
+      // Calculate date range: one month ago to current month
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      // Format dates as YYYY-MM-DD
+      const startDate = oneMonthAgo.toISOString().split('T')[0];
+      const endDate = now.toISOString().split('T')[0];
+
+      const response = await getAllBookings({
+        startDate,
+        endDate
+      });
 
       let bookingsData = [];
 
@@ -244,39 +256,87 @@ const AdminBookings = () => {
   // Filter and search bookings
   const safeBookings = Array.isArray(bookings) ? bookings : [];
 
-  // Group bookings by status
+  // Get today's date (start and end of day)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Filter bookings for today
+  const todaysBookings = safeBookings.filter((booking) => {
+    const bookingDate = new Date(booking.date);
+    bookingDate.setHours(0, 0, 0, 0);
+    return bookingDate.getTime() === today.getTime();
+  });
+
+  // Filter today's completed bookings
+  const todaysCompletedBookings = todaysBookings.filter(
+    (booking) => booking.status === "completed"
+  );
+
+  // Apply search filter first
+  const searchedBookings = safeBookings.filter((booking) => {
+    if (searchQuery === "") return true;
+
+    const searchLower = searchQuery.toLowerCase();
+    const customerName = `${booking.user?.first_name || ""} ${
+      booking.user?.last_name || ""
+    }`.toLowerCase();
+
+    // Check if services is an array or single service
+    const serviceMatch = Array.isArray(booking.services)
+      ? booking.services.some((service) => {
+          // Handle both string services and service objects
+          if (typeof service === 'string') {
+            return service.toLowerCase().includes(searchLower);
+          } else if (service && service.name) {
+            return service.name.toLowerCase().includes(searchLower);
+          }
+          return false;
+        })
+      : booking.service?.toLowerCase().includes(searchLower);
+
+    return (
+      customerName.includes(searchLower) ||
+      booking.user?.first_name?.toLowerCase().includes(searchLower) ||
+      booking.user?.last_name?.toLowerCase().includes(searchLower) ||
+      booking.user?.email?.toLowerCase().includes(searchLower) ||
+      serviceMatch ||
+      booking.vehicle?.toLowerCase().includes(searchLower) ||
+      booking._id?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Apply status filter
+  const statusFilteredBookings =
+    filterStatus === "all"
+      ? searchedBookings
+      : searchedBookings.filter((booking) => booking.status === filterStatus);
+
+  // Group bookings by status after filtering and limit to 50 per status
   const bookingsByStatus = {
-    pending: safeBookings.filter((booking) => booking.status === "pending"),
-    confirmed: safeBookings.filter((booking) => booking.status === "confirmed"),
-    completed: safeBookings.filter((booking) => booking.status === "completed"),
-    cancelled: safeBookings.filter((booking) => booking.status === "cancelled"),
-    rejected: safeBookings.filter((booking) => booking.status === "rejected"),
-    "no-show": safeBookings.filter((booking) => booking.status === "no-show"),
+    pending: statusFilteredBookings
+      .filter((booking) => booking.status === "pending")
+      .slice(0, 50),
+    confirmed: statusFilteredBookings
+      .filter((booking) => booking.status === "confirmed")
+      .slice(0, 50),
+    completed: statusFilteredBookings
+      .filter((booking) => booking.status === "completed")
+      .slice(0, 50),
+    cancelled: statusFilteredBookings
+      .filter((booking) => booking.status === "cancelled")
+      .slice(0, 50),
+    rejected: statusFilteredBookings
+      .filter((booking) => booking.status === "rejected")
+      .slice(0, 50),
+    "no-show": statusFilteredBookings
+      .filter((booking) => booking.status === "no-show")
+      .slice(0, 50),
   };
 
-  // Apply search filter to each status group
-  const filteredBookingsByStatus = Object.keys(bookingsByStatus).reduce(
-    (acc, status) => {
-      acc[status] = bookingsByStatus[status].filter((booking) => {
-        return (
-          searchQuery === "" ||
-          booking.service?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          booking.user?.first_name
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          booking.user?.last_name
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          booking.user?.email
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          booking.vehicle?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      });
-      return acc;
-    },
-    {}
-  );
+  // Use the already filtered bookings grouped by status
+  const filteredBookingsByStatus = bookingsByStatus;
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -424,9 +484,14 @@ const AdminBookings = () => {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Today's Bookings
+                    </p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {safeBookings.length}
+                      {todaysBookings.length}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Total: {safeBookings.length}
                     </p>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-lg">
@@ -475,10 +540,13 @@ const AdminBookings = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
-                      Completed
+                      Completed Today
                     </p>
                     <p className="text-2xl font-bold text-blue-600">
-                      {bookingsByStatus.completed.length}
+                      {todaysCompletedBookings.length}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Total: {bookingsByStatus.completed.length}
                     </p>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-lg">

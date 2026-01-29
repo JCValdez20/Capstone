@@ -1,4 +1,4 @@
-import logo from "../assets/WashUpLogo.png";
+import logo from "../assets/bookup logo.png";
 import React from "react";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   LogOut,
   Home,
@@ -24,6 +24,7 @@ import {
   Shield,
   Calendar,
   MessageCircle,
+  FileText,
 } from "lucide-react";
 import {
   Tooltip,
@@ -112,24 +113,40 @@ const AdminSidebar = ({ children }) => {
       path: isStaffRoute ? "/staff/dashboard" : "/admin/dashboard",
       tooltip: "Dashboard",
     },
-    {
-      icon: Users,
-      label: "User Management",
-      path: isStaffRoute ? "/staff/users" : "/admin/users",
-      tooltip: "Manage Users",
-    },
+    // Show User Management only for staff routes
+    ...(isStaffRoute
+      ? [
+          {
+            icon: Users,
+            label: "User Management",
+            path: "/staff/users",
+            tooltip: "Manage Users",
+          },
+        ]
+      : []),
+    // Show Reports only for admin routes
+    ...(!isStaffRoute
+      ? [
+          {
+            icon: FileText,
+            label: "Reports",
+            path: "/admin/reports",
+            tooltip: "View Reports",
+          },
+        ]
+      : []),
     {
       icon: Calendar,
       label: "Booking Management",
       path: isStaffRoute ? "/staff/bookings" : "/admin/bookings",
       tooltip: "Manage Bookings",
     },
-    // {
-    //   icon: MessageCircle,
-    //   label: "Messages",
-    //   path: isStaffRoute ? "/staff/messages" : "/admin/messages",
-    //   tooltip: "Messages & Chat",
-    // },
+    {
+      icon: MessageCircle,
+      label: "Messages",
+      path: isStaffRoute ? "/staff/messages" : "/admin/messages",
+      tooltip: "Customer Messages",
+    },
     // Show Staff Management only for admin routes and admin users
     ...(!isStaffRoute && userIsAdmin
       ? [
@@ -159,16 +176,15 @@ const AdminSidebar = ({ children }) => {
               <div className="group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:bg-red-500 group-data-[collapsible=icon]:rounded-lg flex items-center justify-center transition-all duration-200">
                 <img
                   src={logo}
-                  alt="WashUp Logo"
-                  className="w-20 h-20 object-contain group-data-[collapsible=icon]:hidden"
+                  alt="BookUp MotMot Logo"
+                  className="w-36 h-36 object-contain group-data-[collapsible=icon]:hidden"
                 />
                 <Shield className="w-4 h-4 text-white hidden group-data-[collapsible=icon]:block" />
               </div>
               <div className="group-data-[collapsible=icon]:hidden text-center">
-                <h1 className="text-lg font-black text-red-700">
-                  WashUp {userRole === "admin" ? "Admin" : "Staff"}
-                </h1>
-                <p className="text-xs text-slate-500">Management Portal</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {userRole === "admin" ? "Admin" : "Staff"} Portal
+                </p>
               </div>
             </div>
           </SidebarHeader>
@@ -222,8 +238,13 @@ const AdminSidebar = ({ children }) => {
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors duration-200 group-data-[collapsible=icon]:justify-center">
                   <Avatar className="w-8 h-8 shrink-0">
+                    <AvatarImage
+                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E"
+                      alt="Profile"
+                      className="bg-gradient-to-br from-red-50 to-orange-50 p-1.5"
+                    />
                     <AvatarFallback className="bg-red-100 text-red-700 text-sm font-medium">
-                      {userInitials}
+                      <User className="w-4 h-4" />
                     </AvatarFallback>
                   </Avatar>
 

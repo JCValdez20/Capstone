@@ -18,22 +18,14 @@ export const useChatStore = create((set, get) => ({
     set({ socket });
   },
 
-  // Get admin and staff users for messaging
+  // Get users for messaging (admin/staff for customers, customers for admin/staff)
   getUsers: async () => {
     set({ isUsersLoading: true });
 
     try {
-      // Use the messaging users route
+      // Use the messaging users route - backend handles filtering by role
       const res = await axios.get("/messages/users");
-
-      // Filter to only admin and staff roles
-      const adminStaffUsers =
-        res.data?.filter((user) => {
-          const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
-          return roles.includes("admin") || roles.includes("staff");
-        }) || [];
-
-      set({ users: adminStaffUsers });
+      set({ users: res.data || [] });
     } catch (error) {
       console.error("Error fetching users:", error);
       set({ users: [] });
@@ -121,5 +113,23 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  setSelectedUser: async (user) => {
+    const currentState = get();
+
+    // Unsubscribe from previous user's messages
+    if (currentState.selectedUser) {
+      currentState.unsubscribeFromMessages();
+    }
+
+    // Set new selected user
+    set({ selectedUser: user, messages: [] });
+
+    if (user) {
+      // Fetch messages for new user
+      await currentState.getMessages(user._id);
+
+      // Subscribe to real-time messages
+      currentState.subscribeToMessages();
+    }
+  },
 }));

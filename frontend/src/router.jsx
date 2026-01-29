@@ -21,12 +21,13 @@ import GoogleCallbackHandler from "./utils/GoogleCallbackHandler.jsx";
 // User pages
 import Dashboard from "./pages/user/dashboard/Dashboard.jsx";
 import BookingHistory from "./pages/user/dashboard/BookingHistory.jsx";
+import UserMessages from "./pages/user/dashboard/UserMessages.jsx";
 import Profile from "./pages/user/profile/Profile.jsx";
 
 // Admin pages
 import AdminLogin from "./pages/admin/login/AdminLogin.jsx";
 import AdminDashboard from "./pages/admin/dashboard/AdminDashboard.jsx";
-import UserManagement from "./pages/admin/dashboard/UserManagement.jsx";
+import AdminReports from "./pages/admin/dashboard/AdminReports.jsx";
 import AdminBookings from "./pages/admin/dashboard/AdminBookings.jsx";
 import StaffManagement from "./pages/admin/dashboard/StaffManagement.jsx";
 import AdminMessages from "./pages/admin/dashboard/AdminMessages.jsx";
@@ -95,10 +96,10 @@ const router = createBrowserRouter([
             ),
           },
           {
-            path: "/admin/users",
+            path: "/admin/reports",
             element: (
               <AdminSidebar>
-                <UserManagement />
+                <AdminReports />
               </AdminSidebar>
             ),
           },
@@ -189,6 +190,14 @@ const router = createBrowserRouter([
             element: (
               <AppSidebar>
                 <BookingHistory />
+              </AppSidebar>
+            ),
+          },
+          {
+            path: "/messages",
+            element: (
+              <AppSidebar>
+                <UserMessages />
               </AppSidebar>
             ),
           },

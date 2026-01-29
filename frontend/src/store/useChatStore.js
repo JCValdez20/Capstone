@@ -10,22 +10,16 @@ export const useChatStore = create((set, get) => ({
   isMessagesLoading: false,
   isSendingMessage: false,
 
-  // Get admin and staff users for messaging
+  // Get users for messaging - backend handles role-based filtering
   getUsers: async () => {
     set({ isUsersLoading: true });
 
     try {
       const response = await axios.get("/messages/users");
+      const users = response.data || [];
 
-      // Filter to only admin and staff roles
-      const adminStaffUsers =
-        response.data?.filter((user) => {
-          const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
-          return roles.includes("admin") || roles.includes("staff");
-        }) || [];
-
-      console.log("📋 Fetched users for messaging:", adminStaffUsers.length);
-      set({ users: adminStaffUsers });
+      console.log("📋 Fetched users for messaging:", users.length);
+      set({ users });
     } catch (error) {
       console.error("❌ Error fetching users:", error);
       set({ users: [] });
@@ -75,9 +69,9 @@ export const useChatStore = create((set, get) => ({
         payload
       );
 
-      console.log("✅ Message sent successfully");
+      console.log("✅ Message sent successfully - will be added via socket");
 
-      // Message will be added via socket event to prevent duplicates
+      // Don't add message here - socket event will handle it for both sender and receiver
       return response.data;
     } catch (error) {
       console.error("❌ Error sending message:", error);
@@ -104,6 +98,8 @@ export const useChatStore = create((set, get) => ({
       console.log("📨 Received new message via socket:", newMessage);
 
       const currentSelectedUser = get().selectedUser;
+      const currentMessages = get().messages;
+
       if (!currentSelectedUser) return;
 
       // Check if this message belongs to current conversation
@@ -112,10 +108,19 @@ export const useChatStore = create((set, get) => ({
         newMessage.receiverId === currentSelectedUser._id;
 
       if (isPartOfCurrentConversation) {
-        console.log("✅ Adding message to current conversation");
-        set((state) => ({
-          messages: [...state.messages, newMessage],
-        }));
+        // Check if message already exists (prevent duplicates)
+        const messageExists = currentMessages.some(
+          (msg) => msg._id === newMessage._id
+        );
+
+        if (!messageExists) {
+          console.log("✅ Adding message to current conversation");
+          set((state) => ({
+            messages: [...state.messages, newMessage],
+          }));
+        } else {
+          console.log("ℹ️ Message already exists, skipping");
+        }
       }
     });
   },

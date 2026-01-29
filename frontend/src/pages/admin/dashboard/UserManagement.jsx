@@ -18,7 +18,6 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
   const { getAllUsers } = useAuth();
 
   const fetchUsers = useCallback(async () => {
@@ -42,8 +41,10 @@ const UserManagement = () => {
       user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === "all" || user.roles === filterRole;
-    return matchesSearch && matchesRole;
+    // Only show customers
+    const roles = Array.isArray(user.roles) ? user.roles : [user.roles];
+    const isCustomer = roles.includes("customer");
+    return matchesSearch && isCustomer;
   });
 
   const customerCount = users.filter((user) => {
@@ -76,14 +77,14 @@ const UserManagement = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  User Management
+                  Customer Management
                 </h1>
                 <p className="text-gray-600 text-lg">
-                  Manage all users and their account types
+                  Manage customer accounts and information
                 </p>
                 <div className="flex items-center gap-4 mt-2">
                   <span className="text-sm text-gray-500">
-                    Total: {users.length} users
+                    Total: {customerCount} customers
                   </span>
                   <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                   <span className="text-sm text-blue-600 font-medium">
@@ -108,13 +109,13 @@ const UserManagement = () => {
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
                         <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                          Total Users
+                          Total Customers
                         </p>
                         <p className="text-3xl font-bold text-gray-900">
-                          {users.length}
+                          {customerCount}
                         </p>
                       </div>
-                      <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                      <div className="p-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl">
                         <User className="w-8 h-8 text-white" />
                       </div>
                     </div>
@@ -126,14 +127,14 @@ const UserManagement = () => {
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
                         <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                          Customers
+                          Filtered Results
                         </p>
                         <p className="text-3xl font-bold text-gray-900">
-                          {customerCount}
+                          {filteredUsers.length}
                         </p>
                       </div>
-                      <div className="p-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl">
-                        <User className="w-8 h-8 text-white" />
+                      <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                        <Search className="w-8 h-8 text-white" />
                       </div>
                     </div>
                   </CardContent>
@@ -159,10 +160,10 @@ const UserManagement = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle className="text-xl font-bold text-gray-900">
-                          Filter & Search Users
+                          Search Customers
                         </CardTitle>
                         <CardDescription className="text-gray-600 mt-1">
-                          Find specific users or filter by role
+                          Find specific customers by name or email
                         </CardDescription>
                       </div>
                       <div className="hidden md:flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-xl">
@@ -186,35 +187,6 @@ const UserManagement = () => {
                           />
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <select
-                          value={filterRole}
-                          onChange={(e) => setFilterRole(e.target.value)}
-                          className="flex h-12 w-full sm:w-48 rounded-xl border border-gray-300 bg-background px-4 py-3 text-base font-medium focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="all">All Roles</option>
-                          <option value="customer">Customers</option>
-                        </select>
-                        <Button
-                          variant="outline"
-                          className="h-12 px-6 rounded-xl border-gray-300 hover:bg-gray-50"
-                        >
-                          <svg
-                            className="w-5 h-5 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
-                            />
-                          </svg>
-                          Advanced Filters
-                        </Button>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -223,10 +195,10 @@ const UserManagement = () => {
                 <Card className="bg-white rounded-xl shadow-sm border-0">
                   <CardHeader>
                     <CardTitle className="text-gray-900">
-                      All Users ({filteredUsers.length})
+                      All Customers ({filteredUsers.length})
                     </CardTitle>
                     <CardDescription className="text-gray-600">
-                      Complete list of users with account information
+                      Complete list of customer accounts
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -289,10 +261,10 @@ const UserManagement = () => {
                         <div className="text-center py-12">
                           <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                           <p className="text-gray-500 text-lg">
-                            No users found
+                            No customers found
                           </p>
                           <p className="text-gray-400 text-sm">
-                            Try adjusting your search or filter criteria
+                            Try adjusting your search criteria
                           </p>
                         </div>
                       )}

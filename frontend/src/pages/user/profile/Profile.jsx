@@ -10,7 +10,12 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Button } from "../../../components/ui/button";
 import { Alert, AlertDescription } from "../../../components/ui/alert";
-import { Avatar, AvatarFallback } from "../../../components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "../../../components/ui/avatar";
+import { User } from "lucide-react";
 import { updateProfile } from "../../../services/userService";
 
 const Profile = () => {
@@ -82,13 +87,6 @@ const Profile = () => {
     }
   };
 
-  const getInitials = () => {
-    if (!user?.first_name || !user?.last_name) return "U";
-    return `${user.first_name.charAt(0)}${user.last_name.charAt(
-      0
-    )}`.toUpperCase();
-  };
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <Card>
@@ -100,11 +98,21 @@ const Profile = () => {
         <CardContent className="space-y-6">
           {/* Avatar Section */}
           <div className="flex justify-center">
-            <Avatar className="w-24 h-24">
-              <AvatarFallback className="text-2xl font-semibold bg-blue-500 text-white">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-32 h-32 border-4 border-gray-200 shadow-lg">
+                <AvatarImage
+                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E"
+                  alt="Profile"
+                  className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6"
+                />
+                <AvatarFallback className="text-3xl font-semibold bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                  <User className="w-16 h-16" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute bottom-0 right-0 w-10 h-10 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+            </div>
           </div>
 
           {/* Profile Form */}

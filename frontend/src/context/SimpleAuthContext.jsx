@@ -72,13 +72,16 @@ export const AuthProvider = ({ children }) => {
   // Register
   const register = async (userData) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/user/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/user/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+        }
+      );
 
       const data = await response.json();
 
@@ -202,6 +205,7 @@ export const AuthProvider = ({ children }) => {
     isAdminAuthenticated: () => isAuthenticated() && isAdmin(),
     isStaffAuthenticated: () => isAuthenticated() && isStaff(),
     isCustomerAuthenticated: () => isAuthenticated() && isCustomer(),
+    isAdminOrStaff: () => isAuthenticated() && (isAdmin() || isStaff()),
     // Booking methods
     getUserBookings,
     cancelBooking,

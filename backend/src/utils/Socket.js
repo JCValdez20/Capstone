@@ -97,4 +97,81 @@ const setupSocketIO = (app) => {
   return { io, server };
 };
 
-module.exports = { setupSocketIO };
+// Helper function to emit to a specific user
+const emitToUser = (userId, event, data) => {
+  if (!global.io || !global.userSocketMap) {
+    console.warn("⚠️ Socket.IO not initialized");
+    return false;
+  }
+
+  const socketId = global.userSocketMap[userId];
+  if (socketId) {
+    global.io.to(socketId).emit(event, data);
+    console.log(`📤 Emitted '${event}' to user ${userId}`);
+    return true;
+  }
+  console.log(`⚠️ User ${userId} not connected`);
+  return false;
+};
+
+// Helper function to emit to all admin users
+const emitToAdmins = (event, data) => {
+  if (!global.io || !global.userSocketMap) {
+    console.warn("⚠️ Socket.IO not initialized");
+    return;
+  }
+
+  // Emit to all connected sockets with admin role
+  Object.entries(global.userSocketMap).forEach(([userId, socketId]) => {
+    const socket = global.io.sockets.sockets.get(socketId);
+    if (socket && socket.user) {
+      const roles = Array.isArray(socket.user.roles)
+        ? socket.user.roles
+        : [socket.user.roles];
+
+      if (roles.includes("admin")) {
+        global.io.to(socketId).emit(event, data);
+        console.log(`📤 Emitted '${event}' to admin ${userId}`);
+      }
+    }
+  });
+};
+
+// Helper function to emit to all staff users
+const emitToStaff = (event, data) => {
+  if (!global.io || !global.userSocketMap) {
+    console.warn("⚠️ Socket.IO not initialized");
+    return;
+  }
+
+  // Emit to all connected sockets with staff role
+  Object.entries(global.userSocketMap).forEach(([userId, socketId]) => {
+    const socket = global.io.sockets.sockets.get(socketId);
+    if (socket && socket.user) {
+      const roles = Array.isArray(socket.user.roles)
+        ? socket.user.roles
+        : [socket.user.roles];
+
+      if (roles.includes("staff")) {
+        global.io.to(socketId).emit(event, data);
+        console.log(`📤 Emitted '${event}' to staff ${userId}`);
+      }
+    }
+  });
+};
+
+// Helper function to get receiver socket ID (for direct access)
+const getReceiverSocketId = (userId) => {
+  if (global.getReceiverSocketId) {
+    return global.getReceiverSocketId(userId);
+  }
+  return null;
+};
+
+module.exports = {
+  setupSocketIO,
+  getReceiverSocketId,
+  emitToUser,
+  emitToAdmins,
+  emitToStaff,
+};

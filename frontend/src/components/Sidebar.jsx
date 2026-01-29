@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import logo from "../assets/WashUpLogo.png";
+import logo from "../assets/bookup logo.png";
 import {
   Sidebar,
   SidebarProvider,
@@ -66,6 +66,12 @@ const AppSidebar = ({ children }) => {
         path: "/booking-history",
         tooltip: "Booking History",
       },
+      {
+        icon: MessageCircle,
+        label: "Messages",
+        path: "/messages",
+        tooltip: "Messages",
+      },
     ],
     []
   );
@@ -89,15 +95,10 @@ const AppSidebar = ({ children }) => {
               <div className="group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:bg-red-500 group-data-[collapsible=icon]:rounded-lg flex items-center justify-center transition-all duration-200">
                 <img
                   src={logo}
-                  alt="WashUp Logo"
-                  className="w-20 h-20 object-contain group-data-[collapsible=icon]:hidden"
+                  alt="BookUp MotMot Logo"
+                  className="w-36 h-36 object-contain group-data-[collapsible=icon]:hidden"
                 />
                 <Menu className="w-4 h-4 text-white hidden group-data-[collapsible=icon]:block" />
-              </div>
-              <div className="group-data-[collapsible=icon]:hidden text-center">
-                <h1 className="text-lg font-black text-red-700 ">
-                  BookUp MotMot
-                </h1>
               </div>
             </div>
           </SidebarHeader>
@@ -151,8 +152,13 @@ const AppSidebar = ({ children }) => {
               <DropdownMenuTrigger asChild>
                 <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors duration-200 group-data-[collapsible=icon]:justify-center">
                   <Avatar key={avatarKey} className="w-8 h-8 shrink-0">
+                    <AvatarImage
+                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E"
+                      alt="Profile"
+                      className="bg-gradient-to-br from-slate-50 to-slate-100 p-1.5"
+                    />
                     <AvatarFallback className="bg-slate-200 text-slate-700 text-sm font-medium">
-                      {initials}
+                      <User className="w-4 h-4" />
                     </AvatarFallback>
                   </Avatar>
 

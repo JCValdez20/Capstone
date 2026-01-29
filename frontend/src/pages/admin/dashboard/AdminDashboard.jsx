@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ mode = "admin" }) => {
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +199,7 @@ const AdminDashboard = () => {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <Card className="bg-white border border-gray-200 rounded-lg shadow-sm">
             <CardContent className="p-5">
               <div className="flex items-center">
@@ -219,104 +219,39 @@ const AdminDashboard = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Users</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {mode === "admin" ? "Total Staff" : "Total Customers"}
+                  </p>
                   <p className="text-2xl font-semibold text-gray-800">
-                    {totalUsers}
+                    {mode === "admin" ? staffCount : customerCount}
                   </p>
                 </div>
               </div>
-              <div className="flex mt-4 space-x-3">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
-                    "admin"
-                  )}`}
-                >
-                  Admins: {adminCount}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
-                    "staff"
-                  )}`}
-                >
-                  Staff: {staffCount}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
-                    "customer"
-                  )}`}
-                >
-                  Customers: {customerCount}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border border-gray-200 rounded-lg shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center">
-                <div className="p-2 rounded-lg bg-green-50 mr-4">
-                  <svg
-                    className="w-6 h-6 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Bookings</p>
-                  <p className="text-2xl font-semibold text-gray-800">
-                    {totalBookings}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap mt-4 gap-2">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                    "pending"
-                  )}`}
-                >
-                  Pending: {pendingBookings}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                    "confirmed"
-                  )}`}
-                >
-                  Confirmed: {confirmedBookings}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                    "completed"
-                  )}`}
-                >
-                  Completed: {completedBookings}
-                </span>
-                {cancelledBookings > 0 && (
+              {mode === "admin" && (
+                <div className="flex mt-4 space-x-3">
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                      "cancelled"
+                    className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
+                      "admin"
                     )}`}
                   >
-                    Cancelled: {cancelledBookings}
+                    Admins: {adminCount}
                   </span>
-                )}
-                {noShowBookings > 0 && (
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${getStatusColor(
-                      "no-show"
+                    className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
+                      "staff"
                     )}`}
                   >
-                    No-show: {noShowBookings}
+                    Staff: {staffCount}
                   </span>
-                )}
-              </div>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
+                      "customer"
+                    )}`}
+                  >
+                    Customers: {customerCount}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

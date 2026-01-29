@@ -7,25 +7,31 @@ import {
   NavigationMenuItem,
   NavigationMenuLink,
 } from "./ui/navigation-menu";
+import logo from "../assets/bookup logo.png";
 
 const Navigation = () => {
   return (
-    <nav className="bg-white py-12">
-      <div className="container mx-auto px-15 flex items-center justify-between">
-        <div className="text-3xl italic font-black text-red-600">
-          BookUp MotMot
+    <nav className="bg-white py-6 sticky top-0 z-50 backdrop-blur-sm bg-opacity-95 border-b border-gray-100 shadow-sm">
+      <div className="container mx-auto px-8 flex items-center justify-between">
+        <div className="flex items-center">
+          <img
+            src={logo}
+            alt="BookUp MotMot"
+            className="h-28 w-auto transition-transform hover:scale-105 duration-300"
+          />
         </div>
         <NavigationMenu>
-          <NavigationMenuList className="flex items-center space-x-8">
+          <NavigationMenuList className="flex items-center space-x-2">
             <NavigationMenuItem>
               <ScrollLink
                 to="services"
                 smooth={true}
                 duration={500}
                 offset={-80}
-                className="text-gray-600 hover:text-red-600 transition-all text-1xl cursor-pointer font-medium relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-red-600 after:left-0 after:bottom-0 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+                className="text-gray-700 hover:text-red-600 transition-all text-base cursor-pointer font-semibold px-4 py-2 rounded-lg hover:bg-red-50 relative group"
               >
                 Services
+                <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
               </ScrollLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
@@ -34,16 +40,17 @@ const Navigation = () => {
                 smooth={true}
                 duration={500}
                 offset={-80}
-                className="text-gray-600 hover:text-red-600 transition-all text-1xl cursor-pointer font-medium relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-red-600 after:left-0 after:bottom-0 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+                className="text-gray-700 hover:text-red-600 transition-all text-base cursor-pointer font-semibold px-4 py-2 rounded-lg hover:bg-red-50 relative group"
               >
                 Contact
+                <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-red-600 transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
               </ScrollLink>
             </NavigationMenuItem>
             <NavigationMenuItem>
               <Link to="/login">
                 <Button
                   variant="ghost"
-                  className="text-black font-medium transition-all text-lg px-6 py-7 relative after:content-[''] after:absolute after:w-full after:h-0.5 after:bg-red-600 after:left-0 after:bottom-0 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300"
+                  className="text-gray-700 hover:text-red-600 font-semibold transition-all text-base px-5 py-2.5 hover:bg-red-50 rounded-lg"
                 >
                   Sign In
                 </Button>
@@ -53,7 +60,7 @@ const Navigation = () => {
               <Link to="/register">
                 <Button
                   variant="default"
-                  className="bg-red-600 text-white hover:bg-red-700 transition-all text-lg px-6 py-7 font-semibold shadow-md hover:shadow-lg"
+                  className="bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 transition-all text-base px-6 py-2.5 font-semibold shadow-lg hover:shadow-xl rounded-lg transform hover:-translate-y-0.5 duration-300"
                 >
                   Sign Up
                 </Button>

@@ -68,9 +68,17 @@ const BookingHistory = () => {
 
   const handleConfirmCancel = async () => {
     if (!bookingToCancel) return;
+    
+    // Validate cancellation reason is provided
+    if (!cancellationReason.trim()) {
+      toast.error("Cancellation reason is required", {
+        description: "Please provide a reason for cancelling this booking.",
+      });
+      return;
+    }
 
     try {
-      await cancelBooking(bookingToCancel._id, cancellationReason);
+      await cancelBooking(bookingToCancel._id, cancellationReason.trim());
       setIsCancelDialogOpen(false);
       setBookingToCancel(null);
       setCancellationReason("");
@@ -456,20 +464,26 @@ const BookingHistory = () => {
           <DialogHeader>
             <DialogTitle>Cancel Booking</DialogTitle>
             <DialogDescription>
-              Please provide a reason for cancelling this booking (optional).
+              Please provide a reason for cancelling this booking. This helps us improve our service.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                Cancellation Reason
+                Cancellation Reason <span className="text-red-500">*</span>
               </label>
               <Textarea
                 placeholder="e.g., Schedule conflict, Changed plans, etc."
                 value={cancellationReason}
                 onChange={(e) => setCancellationReason(e.target.value)}
                 className="min-h-[100px]"
+                required
               />
+              {cancellationReason.trim() === "" && (
+                <p className="text-xs text-gray-500">
+                  Please enter a reason to proceed with cancellation
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -483,7 +497,11 @@ const BookingHistory = () => {
             >
               Keep Booking
             </Button>
-            <Button variant="destructive" onClick={handleConfirmCancel}>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmCancel}
+              disabled={!cancellationReason.trim()}
+            >
               Cancel Booking
             </Button>
           </DialogFooter>

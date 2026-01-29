@@ -13,7 +13,8 @@ import { FcGoogle } from "react-icons/fc";
 import { useAuth } from "../../hooks/useAuth";
 import { toast } from "sonner";
 
-import loginImage from "../../assets/login-page-image.jpg";
+import loginImage from "../../assets/login-signupimage.jpg";
+import logo from "../../assets/bookup logo.png";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -115,8 +116,8 @@ const Login = () => {
     <div className="h-screen w-full flex flex-col lg:flex-row overflow-hidden">
       <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
         <div className="w-full max-w-[360px]">
-          <div className="text-2xl md:text-3xl font-black text-red-600 mb-4 text-center lg:text-left">
-            BookUp MotMot
+          <div className="mb-4 flex justify-center lg:justify-start">
+            <img src={logo} alt="BookUp MotMot" className="h-24 w-auto" />
           </div>
 
           <Card className="border-none shadow-none">

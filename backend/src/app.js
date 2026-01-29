@@ -45,8 +45,8 @@ connectDB()
   });
 
 app.use(morgan("dev"));
-app.use(parser.urlencoded({ extended: false }));
-app.use(parser.json());
+app.use(parser.urlencoded({ limit: "10mb", extended: true }));
+app.use(parser.json({ limit: "10mb" }));
 
 const userRoutes = require("./routes/UserRoutes");
 const authRoutes = require("./routes/AuthRoutes");

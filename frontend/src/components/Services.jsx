@@ -2,19 +2,22 @@ import { Card, CardHeader, CardTitle, CardDescription } from "./ui/card";
 
 const Services = () => {
   return (
-    <section id="services" className="py-20 bg-white">
+    <section
+      id="services"
+      className="py-20 bg-gradient-to-b from-gray-800 via-gray-900 to-gray-800"
+    >
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-black mb-4">Our Services</h2>
+          <h2 className="text-4xl font-bold text-white mb-4">Our Services</h2>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-100">
+          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-700 hover:border-red-500 bg-gray-800/50 backdrop-blur-sm">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="p-3 rounded-full bg-red-50 group-hover:bg-red-100 transition-colors duration-300">
+                <span className="p-3 rounded-full bg-red-900/50 group-hover:bg-red-800 transition-colors duration-300">
                   <svg
-                    className="h-6 w-6 text-red-600"
+                    className="h-6 w-6 text-red-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -27,11 +30,11 @@ const Services = () => {
                     />
                   </svg>
                 </span>
-                <CardTitle className="text-xl font-semibold text-gray-900">
+                <CardTitle className="text-xl font-semibold text-white">
                   UV Graphene Ceramic Coating
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-gray-300">
                 Premium ceramic coating that provides ultimate protection and a
                 stunning glossy finish for your vehicle. Advanced UV-resistant
                 formula.
@@ -39,12 +42,12 @@ const Services = () => {
             </CardHeader>
           </Card>
 
-          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-100">
+          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-700 hover:border-red-500 bg-gray-800/50 backdrop-blur-sm">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="p-3 rounded-full bg-red-50 group-hover:bg-red-100 transition-colors duration-300">
+                <span className="p-3 rounded-full bg-red-900/50 group-hover:bg-red-800 transition-colors duration-300">
                   <svg
-                    className="h-6 w-6 text-red-600"
+                    className="h-6 w-6 text-red-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -57,23 +60,23 @@ const Services = () => {
                     />
                   </svg>
                 </span>
-                <CardTitle className="text-xl font-semibold text-gray-900">
+                <CardTitle className="text-xl font-semibold text-white">
                   Powder Coating
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-gray-300">
                 Professional powder coating service for motorcycle parts and
                 accessories. Durable, attractive finish that lasts.
               </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-100">
+          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-700 hover:border-red-500 bg-gray-800/50 backdrop-blur-sm">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="p-3 rounded-full bg-red-50 group-hover:bg-red-100 transition-colors duration-300">
+                <span className="p-3 rounded-full bg-red-900/50 group-hover:bg-red-800 transition-colors duration-300">
                   <svg
-                    className="h-6 w-6 text-red-600"
+                    className="h-6 w-6 text-red-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -86,23 +89,23 @@ const Services = () => {
                     />
                   </svg>
                 </span>
-                <CardTitle className="text-xl font-semibold text-gray-900">
+                <CardTitle className="text-xl font-semibold text-white">
                   Moto/Oto VIP
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-gray-300">
                 Premium detailing service for both motorcycles and automobiles.
                 VIP treatment for your prized vehicle.
               </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-100">
+          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-700 hover:border-red-500 bg-gray-800/50 backdrop-blur-sm">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="p-3 rounded-full bg-red-50 group-hover:bg-red-100 transition-colors duration-300">
+                <span className="p-3 rounded-full bg-red-900/50 group-hover:bg-red-800 transition-colors duration-300">
                   <svg
-                    className="h-6 w-6 text-red-600"
+                    className="h-6 w-6 text-red-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -115,23 +118,23 @@ const Services = () => {
                     />
                   </svg>
                 </span>
-                <CardTitle className="text-xl font-semibold text-gray-900">
+                <CardTitle className="text-xl font-semibold text-white">
                   Full Moto/Oto SPA
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-gray-300">
                 Complete rejuvenation package for your vehicle. Comprehensive
                 cleaning and detailing for that showroom shine.
               </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-100">
+          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-700 hover:border-red-500 bg-gray-800/50 backdrop-blur-sm">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="p-3 rounded-full bg-red-50 group-hover:bg-red-100 transition-colors duration-300">
+                <span className="p-3 rounded-full bg-red-900/50 group-hover:bg-red-800 transition-colors duration-300">
                   <svg
-                    className="h-6 w-6 text-red-600"
+                    className="h-6 w-6 text-red-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -144,23 +147,23 @@ const Services = () => {
                     />
                   </svg>
                 </span>
-                <CardTitle className="text-xl font-semibold text-gray-900">
+                <CardTitle className="text-xl font-semibold text-white">
                   Interior Detailing
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-gray-300">
                 Advanced interior cleaning techniques. Restore and protect your
                 vehicle's cabin to pristine condition.
               </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-red-100">
+          <Card className="group hover:shadow-lg transition-all duration-300 border border-gray-700 hover:border-red-500 bg-gray-800/50 backdrop-blur-sm">
             <CardHeader className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="p-3 rounded-full bg-red-50 group-hover:bg-red-100 transition-colors duration-300">
+                <span className="p-3 rounded-full bg-red-900/50 group-hover:bg-red-800 transition-colors duration-300">
                   <svg
-                    className="h-6 w-6 text-red-600"
+                    className="h-6 w-6 text-red-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -173,11 +176,11 @@ const Services = () => {
                     />
                   </svg>
                 </span>
-                <CardTitle className="text-xl font-semibold text-gray-900">
+                <CardTitle className="text-xl font-semibold text-white">
                   Engine Detailing
                 </CardTitle>
               </div>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-gray-300">
                 Professional engine bay cleaning and detailing. Make your engine
                 look as good as it performs.
               </CardDescription>

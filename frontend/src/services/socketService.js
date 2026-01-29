@@ -16,9 +16,15 @@ class SocketService {
 
     console.log("🔗 Connecting socket...");
 
+    // Get access token from localStorage
+    const token = localStorage.getItem("accessToken");
+
     this.socket = io(API_URL, {
-      withCredentials: true, // Send HttpOnly cookies with socket connection
+      withCredentials: true,
       transports: ["websocket", "polling"],
+      auth: {
+        token: token, // Send token for authentication
+      },
     });
 
     this.socket.on("connect", () => {

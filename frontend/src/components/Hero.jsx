@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
-    <section className="py-20">
+    <section className="py-20 bg-white">
       <div className="container mx-auto px-4">
         <Card className="border-none shadow-xl overflow-hidden relative">
           <div className="absolute inset-0">
